@@ -1,6 +1,6 @@
 """
 features.py -- Feature engineering pipeline.
-34 hand-crafted stylometric features + word/char TF-IDF.
+43 hand-crafted stylometric features + word/char/function-word TF-IDF.
 All fitted INSIDE CV folds -- no leakage.
 """
 import re
@@ -16,10 +16,50 @@ from src.utils import get_logger
 
 logger = get_logger(__name__)
 
+# ── Function-word vocabulary ──────────────────────────────────────────────────
+# These words carry style (who is writing) rather than topic (what is written).
+# Different LLMs have very distinct distributional fingerprints in this space.
+FUNCTION_WORDS = [
+    # Determiners
+    "the", "a", "an", "this", "that", "these", "those",
+    "my", "your", "his", "her", "its", "our", "their",
+    # Prepositions
+    "of", "in", "on", "at", "to", "for", "with", "by", "from", "about",
+    "as", "into", "through", "during", "before", "after", "above", "below",
+    "between", "among", "under", "over", "within", "without", "upon",
+    # Coordinating conjunctions
+    "and", "but", "or", "so", "yet",
+    # Subordinating conjunctions
+    "although", "because", "since", "while", "if", "unless", "until",
+    "when", "where", "whether", "though",
+    # Auxiliaries
+    "is", "are", "was", "were", "be", "been", "being",
+    "have", "has", "had", "do", "does", "did",
+    "will", "would", "shall", "should", "may", "might", "must", "can", "could",
+    # Personal pronouns
+    "i", "you", "he", "she", "it", "we", "they", "me", "him", "us", "them",
+    # Discourse / transition markers (strong style fingerprint across LLMs)
+    "however", "therefore", "moreover", "furthermore", "additionally",
+    "nevertheless", "nonetheless", "thus", "hence", "consequently",
+    "accordingly", "whereas", "meanwhile", "subsequently", "overall",
+    "also", "too", "either", "neither",
+    # Degree / intensifiers
+    "very", "quite", "rather", "somewhat", "even", "just", "only",
+    "indeed", "certainly", "particularly", "especially", "generally",
+    "actually", "basically", "literally", "simply",
+    # Quantifiers
+    "all", "some", "any", "each", "every", "many", "much", "few", "little",
+    "more", "most", "other", "another", "same", "different", "various", "several",
+    # Relative / interrogative
+    "which", "who", "whom", "whose", "what", "how", "why",
+    # Negation
+    "not", "no", "never", "nor",
+]
+
 
 class StyleometricTransformer(BaseEstimator, TransformerMixin):
     """
-    34 hand-crafted stylometric features.
+    43 features.
     Key additions over v1 (20 features):
       - very_short/long sentence ratios (DeepSeek short, Grok long)
       - numbered_list_rate    (DeepSeek loves numbered lists)
@@ -43,6 +83,12 @@ class StyleometricTransformer(BaseEstimator, TransformerMixin):
         r'in conclusion|in summary|for example|for instance|in particular)\b',
         re.IGNORECASE
     )
+    _HEDGE_RE = re.compile(
+        r'\b(may|might|could|possibly|perhaps|likely|suggests|suggest|'
+        r'appears|appear|seems|seem|potentially|presumably|arguably|'
+        r'apparently|typically|usually|often)\b',
+        re.IGNORECASE
+    )
 
     def fit(self, X, y=None):
         return self
@@ -52,7 +98,7 @@ class StyleometricTransformer(BaseEstimator, TransformerMixin):
 
     def _f(self, text):
         if not text or not isinstance(text, str):
-            return [0.0] * 37
+            return [0.0] * 43
         NL2 = '\n\n'
         NL1 = '\n'
         ch = len(text)
@@ -117,10 +163,34 @@ class StyleometricTransformer(BaseEstimator, TransformerMixin):
         # Both DeepSeek and LLMs use these, but at different rates
         trans_rate = len(self._TRANS_RE.findall(text)) / ns
 
+        # ---- New Run 6: DS/Grok fine-grained discriminators -------------------
+        # first_sent_words: word count of first sentence
+        #   DS short texts often start with a very concise definition sentence
+        fsw = float(len(sents[0].split())) if sents else 0.0
+
+        # proper_noun_density: capitalised words that are NOT sentence-starters / total words
+        #   Factual DS texts tend to have more named entities (scientists, places, concepts)
+        cap_words = sum(1 for w in words if w and w[0].isupper())
+        proper_noun_dens = max(cap_words - ns, 0) / nw
+
+        # hedge_rate: uncertainty language per sentence (Grok hedges more than DS)
+        hedge_rate = len(self._HEDGE_RE.findall(text)) / ns
+
+        # question_per_sent: "?" per sentence (DS almost never asks questions)
+        qps = text.count('?') / ns
+
+        # sent_range: max - min sentence word count; DS is more length-uniform
+        sent_range = float(max(swc) - min(swc)) if len(swc) > 1 else 0.0
+
+        # text_len_log: log10 of char count — length bucket is a style signal
+        import math
+        text_len_log = math.log10(max(ch, 1))
+
         return [ch, nw, ns, np_, awl, nw/ns, nw/np_, ttr, lwr,
                 vss, vls, apc, cm, per, ex, qu, co, se, qt, pa, el, da,
                 ucr, dr, cwr, nlr, br, nr, hr, cr, bor, ir, lkr, isr,
-                punct_variety, sent_cv, trans_rate]
+                punct_variety, sent_cv, trans_rate, fsw, proper_noun_dens,
+                hedge_rate, qps, sent_range, text_len_log]
 
 
 class IdentityTransformer(BaseEstimator, TransformerMixin):
@@ -160,6 +230,15 @@ class DenseToSparse(BaseEstimator, TransformerMixin):
 
 class StyleometricPipeline(BaseEstimator, TransformerMixin):
     """Extractor + MaxAbsScaler + sparse conversion."""
+    _FEATURE_NAMES = [
+        "ch", "nw", "ns", "np", "awl", "nw_per_s", "nw_per_p", "ttr", "lwr",
+        "vss", "vls", "apc", "cm", "per", "ex", "qu", "co", "se", "qt", "pa",
+        "el", "da", "ucr", "dr", "cwr", "nlr", "br", "nr", "hr", "cr", "bor",
+        "ir", "lkr", "isr", "punct_variety", "sent_cv", "trans_rate",
+        "first_sent_words", "proper_noun_density", "hedge_rate",
+        "question_per_sent", "sent_range", "text_len_log",
+    ]
+
     def __init__(self):
         self.extractor = StyleometricTransformer()
         self.scaler    = MaxAbsScaler()
@@ -171,19 +250,44 @@ class StyleometricPipeline(BaseEstimator, TransformerMixin):
     def transform(self, X, y=None):
         return sp.csr_matrix(self.scaler.transform(self.extractor.transform(X)))
 
+    def get_feature_names_out(self, input_features=None):
+        return np.array(self._FEATURE_NAMES)
+
+
+def build_function_word_tfidf(cfg: Dict) -> TfidfVectorizer:
+    """
+    TF-IDF restricted to the FUNCTION_WORDS vocabulary.
+    Captures style fingerprint (how the author connects ideas)
+    rather than topic (what the text is about).
+    """
+    return TfidfVectorizer(
+        analyzer="word",
+        vocabulary=FUNCTION_WORDS,
+        ngram_range=(1, 1),
+        sublinear_tf=cfg.get("sublinear_tf", True),
+        token_pattern=r"(?u)\b\w+\b",
+    )
+
 
 def build_feature_union(config: Dict) -> FeatureUnion:
-    fc  = config.get('features', {})
-    wc  = fc.get('word_tfidf', {})
-    cc  = fc.get('char_tfidf', {})
-    sc  = fc.get('stylometric', {})
+    fc  = config.get("features", {})
+    wc  = fc.get("word_tfidf", {})
+    cc  = fc.get("char_tfidf", {})
+    sc  = fc.get("stylometric", {})
+    fw  = fc.get("function_word_tfidf", {})
+
     trans = [
-        ('word_tfidf', build_word_tfidf(wc)),
-        ('char_tfidf', build_char_tfidf(cc)),
+        ("word_tfidf", build_word_tfidf(wc)),
+        ("char_tfidf", build_char_tfidf(cc)),
     ]
-    if sc.get('enabled', True):
-        trans.append(('stylometric', StyleometricPipeline()))
-        logger.info('  Stylometric features: ENABLED (37 features)')
+    if sc.get("enabled", True):
+        trans.append(("stylometric", StyleometricPipeline()))
+        logger.info("  Stylometric features: ENABLED (43 features)")
     else:
-        logger.info('  Stylometric features: disabled')
+        logger.info("  Stylometric features: disabled")
+
+    if fw.get("enabled", False):
+        trans.append(("function_word_tfidf", build_function_word_tfidf(fw)))
+        logger.info(f"  Function-word TF-IDF: ENABLED ({len(FUNCTION_WORDS)} words)")
+
     return FeatureUnion(transformer_list=trans)

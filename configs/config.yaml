@@ -1,14 +1,18 @@
 # ============================================================
-# MALTO Text Authorship Detection — Configuration  (Run 3)
+# MALTO Text Authorship Detection — Configuration  (Run 6)
 # ============================================================
-# Changes from Run 2:
-#   - Stylometric features: 34 -> 37 (punct_variety, sent_length_cv, transition_word_rate)
-#   - word TF-IDF max_features: 100k -> 50k  (less overfit)
-#   - char TF-IDF max_features: 100k -> 50k  (less overfit)
-#   - word min_df: 2 -> 3, char min_df: 3 -> 4  (remove rare noise)
-#   - LR C: 1.0 -> 0.5  (more regularization to close CV-LB gap)
-#   - Added lr_seed_avg model (5-seed average, best for minority recall)
-#   - use_best_fold_model: true  (use best CV fold instead of all-data refit)
+# Run 5 results: LB 0.91089 (same as Run 4) — ensemble_two_stage & two_stage_conservative
+#   did not improve over ensemble_soft. DS->Grok=27 still the main problem.
+#
+# Run 6 changes (target: >0.93 LB — fix DeepSeek recall):
+#   - 43 stylometric features (up from 37): first_sent_words, proper_noun_density,
+#     hedge_rate, question_per_sent, sent_range, text_len_log
+#   - two_stage_top2: fires ONLY when DS and Grok are BOTH top-2 predicted classes
+#     (more precise than margin trigger — avoids false triggers when Grok is clear)
+#   - DS/Grok pair-specific threshold: optimized ratio P(DS)/(P(DS)+P(Grok))
+#     applied as post-processor after global thresholds — only affects DS/Grok boundary
+#   - Bug fix: stale thresholds warning in main_infer.py
+#   - Bug fix: single-model CV now saves thresholds
 # ============================================================
 
 # -----------------------------------------------------------
@@ -55,18 +59,25 @@ features:
     sublinear_tf: true
     analyzer: "word"
 
-  # Character-level TF-IDF — reduced from 100k to 50k
+  # Character-level TF-IDF — min_df lowered to 2 to expose rare but class-specific char patterns
   char_tfidf:
     ngram_range: [2, 6]
     max_features: 50000
-    min_df: 4              # raised from 3
+    min_df: 2              # lowered from 4: rare char n-grams can distinguish DeepSeek/Grok
     max_df: 0.95
     sublinear_tf: true
     analyzer: "char_wb"
 
-  # Stylometric hand-crafted features (37 features)
+  # Stylometric hand-crafted features (43 features)
   stylometric:
     enabled: true
+
+  # Function-word TF-IDF — style fingerprint, not topic
+  # Uses a fixed ~130-word vocabulary of determiners, conjunctions, auxiliaries,
+  # pronouns, and discourse markers.  Different LLMs use these at very distinct rates.
+  function_word_tfidf:
+    enabled: true
+    sublinear_tf: true
 
 # -----------------------------------------------------------
 # Cross-Validation
@@ -88,14 +99,21 @@ learning_curve:
 # -----------------------------------------------------------
 models:
   run_models:
-    - "logistic_regression_balanced"   # Run 2 winner: 0.9140 CV F1
-    - "lr_seed_avg"                    # NEW: 5-seed average (stable minority recall)
-    - "ensemble_soft"                  # Soft calibrated voting
-    - "sgd_hinge"                      # Fast baseline reference
+    - "ensemble_soft"                  # Run 4/5 winner: LB=0.91089, CV=0.9321
+    - "two_stage_top2"                 # NEW Run 6: top-2 trigger (DS+Grok must be top-2)
+    - "logistic_regression_balanced"   # Fast baseline for comparison
+    - "lr_deepseek_boost"              # DS class weight 2x beyond balanced
 
   # NOTE: when run_cv=true, the CV winner OVERRIDES this setting.
   # This value is only used when run_cv=false (direct final training).
-  best_model: "lr_seed_avg"
+  best_model: "ensemble_soft"
+
+  # DeepSeek weight multiplier on top of 'balanced' for lr_deepseek_boost
+  deepseek_boost: 2.0
+
+  # Two-stage trigger and threshold settings (shared across all two_stage_* models)
+  two_stage_margin_gap: 0.40      # only invoke binary when |P(DS)-P(Grok)| < gap
+  two_stage_ds_threshold: 0.52    # binary needs P(DS) >= this to predict DeepSeek
 
   # ── Model hyperparameters ────────────────────────────────────────────────
   logistic_regression:

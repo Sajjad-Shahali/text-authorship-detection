@@ -136,6 +136,7 @@ def main():
             thresh_artifact = {
                 "model": all_cv_results.get("_threshold_model", best_model_name),
                 "thresholds": all_cv_results["_thresholds"],
+                "ds_grok_pair_threshold": all_cv_results.get("_ds_grok_pair_threshold"),
             }
             save_json(thresh_artifact, str(Path(paths["artifacts_dir"]) / "thresholds.json"))
             logger.info("  Per-class thresholds saved to: artifacts/thresholds.json")
@@ -154,6 +155,23 @@ def main():
             cv_results["oof_classification_report"],
             str(Path(paths["metrics_dir"]) / "classification_report.txt"),
         )
+
+        # Compute and save thresholds for single-model CV run
+        if cv_results.get("oof_proba") is not None:
+            from src.threshold_optimizer import optimize_thresholds, optimize_ds_grok_threshold
+            import numpy as np
+            oof_proba_arr = np.array(cv_results["oof_proba"])
+            thresholds = optimize_thresholds(oof_proba_arr, y)
+            pair_thr = optimize_ds_grok_threshold(oof_proba_arr, y)
+            thresh_artifact = {
+                "model": best_model_name,
+                "thresholds": thresholds.tolist(),
+                "ds_grok_pair_threshold": float(pair_thr),
+            }
+            save_json(thresh_artifact, str(Path(paths["artifacts_dir"]) / "thresholds.json"))
+            if exp_dir:
+                save_json(thresh_artifact, exp_dir / "thresholds.json")
+            logger.info(f"  Thresholds saved (single-model CV): {thresholds.tolist()}")
 
     # ── Final training ─────────────────────────────────────────────────────────
     model_save_path = paths["best_model_file"]

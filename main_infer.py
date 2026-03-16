@@ -4,10 +4,20 @@ main_infer.py
 Entry point for inference on the test set.
 
 Usage:
+    # Use the default best model saved by main_train.py:
     python main_infer.py --config configs/config.yaml
 
-Loads the trained pipeline, runs it on test.csv,
-and saves predictions to artifacts/submissions/.
+    # Use a specific model file:
+    python main_infer.py --model artifacts/models/best_model.joblib
+
+    # Use a model from a specific experiment run:
+    python main_infer.py --model artifacts/experiments/2026-03-16_161401_run/best_model.joblib
+
+    # List all available saved models across experiments:
+    python main_infer.py --list-models
+
+Saves predictions to artifacts/submissions/submission_<timestamp>.csv
+and also updates artifacts/submissions/submission_latest.csv.
 """
 
 import argparse
@@ -29,6 +39,23 @@ from src.utils import (
 )
 
 
+def list_available_models(artifacts_dir: str = "artifacts") -> None:
+    """Print all .joblib model files found under the artifacts directory."""
+    root = Path(artifacts_dir)
+    models = sorted(root.glob("**/*.joblib"))
+    if not models:
+        print("No .joblib model files found under", root.resolve())
+        return
+    print(f"\nAvailable models under {root.resolve()}:")
+    print("-" * 70)
+    for m in models:
+        size_mb = m.stat().st_size / 1e6
+        print(f"  {m}  ({size_mb:.1f} MB)")
+    print()
+    print("Usage:  python main_infer.py --model <path>")
+    print()
+
+
 def parse_args():
     parser = argparse.ArgumentParser(
         description="MALTO Text Authorship Detection — Inference Pipeline"
@@ -43,13 +70,28 @@ def parse_args():
         "--model",
         type=str,
         default=None,
-        help="Override model path (default: paths.best_model_file from config)",
+        help=(
+            "Path to a specific .joblib model file to use for inference. "
+            "Overrides paths.best_model_file from config. "
+            "Example: --model artifacts/experiments/2026-03-16_161401_run/best_model.joblib"
+        ),
+    )
+    parser.add_argument(
+        "--list-models",
+        action="store_true",
+        help="List all available .joblib model files and exit.",
     )
     return parser.parse_args()
 
 
 def main():
     args = parse_args()
+
+    # ── List models shortcut ───────────────────────────────────────────────────
+    if args.list_models:
+        list_available_models()
+        return
+
     run_start = time.time()
 
     # ── Load config ────────────────────────────────────────────────────────────
@@ -71,11 +113,26 @@ def main():
     # ── Load per-class thresholds (if available from threshold optimization) ───
     from src.utils import load_json
     thresholds = None
+    ds_grok_pair_threshold = None
     threshold_path = Path(paths.get("artifacts_dir", "artifacts")) / "thresholds.json"
     if threshold_path.exists():
         try:
             thresh_data = load_json(str(threshold_path))
             thresholds = thresh_data.get("thresholds")
+            ds_grok_pair_threshold = thresh_data.get("ds_grok_pair_threshold")
+            threshold_model = thresh_data.get("model", "unknown")
+            # Warn if threshold file was computed for a different model
+            if args.model and threshold_model not in str(args.model):
+                logger.warning(
+                    f"  [THRESHOLD MISMATCH WARNING] Thresholds were computed for "
+                    f"'{threshold_model}' but you are using a custom model path "
+                    f"'{args.model}'. These thresholds may not match. "
+                    f"Applying anyway — verify results."
+                )
+            if ds_grok_pair_threshold is not None:
+                logger.info(
+                    f"  DS/Grok pair threshold: {ds_grok_pair_threshold:.3f}"
+                )
             logger.info(f"Loaded per-class thresholds from: {threshold_path}")
             logger.info(f"  Thresholds: {[round(t,3) for t in thresholds]}")
         except Exception as e:
@@ -87,7 +144,11 @@ def main():
     logger.info(f"Test samples: {len(X_test)}")
 
     # ── Predict ────────────────────────────────────────────────────────────────
-    preds = predict(pipeline, X_test, thresholds=thresholds)
+    preds = predict(
+        pipeline, X_test,
+        thresholds=thresholds,
+        ds_grok_pair_threshold=ds_grok_pair_threshold,
+    )
     logger.info(f"Generated {len(preds)} predictions.")
 
     # ── Build submission ───────────────────────────────────────────────────────

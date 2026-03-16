@@ -106,3 +106,74 @@ def optimize_thresholds(
     logger.info(f"  Thresholds: {[round(t,3) for t in thresholds]}")
 
     return thresholds
+
+
+DEEPSEEK_CLASS = 1
+GROK_CLASS = 2
+
+
+def apply_ds_grok_pair_threshold(
+    proba: np.ndarray,
+    preds: np.ndarray,
+    pair_threshold: float,
+) -> np.ndarray:
+    """
+    Apply a pair-specific DS/Grok ratio threshold.
+
+    For every sample where the two most probable classes are DS and Grok,
+    compute  ratio = P(DS) / (P(DS) + P(Grok))  and predict DS when
+    ratio >= pair_threshold (otherwise Grok).
+
+    This is applied AFTER the global threshold argmax and only affects
+    samples where DS and Grok are the top-2 candidates — it does NOT
+    create false positives for other classes.
+    """
+    preds = preds.copy()
+    ds_sum = proba[:, DEEPSEEK_CLASS] + proba[:, GROK_CLASS]
+    # Only apply where both DS and Grok have meaningful probability
+    ambiguous = (ds_sum > 0.15) & (
+        (preds == DEEPSEEK_CLASS) | (preds == GROK_CLASS)
+    )
+    if not ambiguous.any():
+        return preds
+    ratio = proba[ambiguous, DEEPSEEK_CLASS] / np.maximum(ds_sum[ambiguous], 1e-9)
+    preds[ambiguous] = np.where(ratio >= pair_threshold, DEEPSEEK_CLASS, GROK_CLASS)
+    return preds
+
+
+def optimize_ds_grok_threshold(
+    proba: np.ndarray,
+    y_true: np.ndarray,
+    n_grid: int = 21,
+) -> float:
+    """
+    Grid-search the DS/Grok pair ratio threshold to maximise macro F1.
+
+    Searches the threshold in [0.25, 0.75] and returns the value that
+    gives the best global macro F1 when applied as a pair post-processor
+    after the argmax on (possibly already scaled) probabilities.
+
+    Returns 0.5 (neutral) if no gain found or insufficient DS/Grok samples.
+    """
+    ds_grok_count = int(((y_true == DEEPSEEK_CLASS) | (y_true == GROK_CLASS)).sum())
+    if ds_grok_count < 10:
+        logger.info("  Pair threshold: insufficient DS/Grok samples — using 0.50")
+        return 0.5
+
+    baseline_preds = np.argmax(proba, axis=1)
+    best_macro = f1_score(y_true, baseline_preds, average="macro", zero_division=0)
+    best_thr = 0.5
+    grid = np.linspace(0.25, 0.75, n_grid)
+
+    for thr in grid:
+        preds_c = apply_ds_grok_pair_threshold(proba, baseline_preds, thr)
+        macro = f1_score(y_true, preds_c, average="macro", zero_division=0)
+        if macro > best_macro:
+            best_macro = macro
+            best_thr = thr
+
+    logger.info(
+        f"  Pair threshold (DS/Grok ratio): {best_thr:.3f}  "
+        f"(macro F1 = {best_macro:.4f})"
+    )
+    return float(best_thr)

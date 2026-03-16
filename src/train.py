@@ -29,6 +29,8 @@ import pandas as pd
 from sklearn.model_selection import StratifiedKFold
 from sklearn.pipeline import Pipeline
 
+import pandas as pd
+
 from src.constants import RANDOM_SEED
 from src.evaluate import (
     compute_macro_f1,
@@ -332,9 +334,17 @@ def run_model_comparison(
         thresholds = optimize_thresholds(oof_proba_arr, y)
         all_results["_thresholds"] = thresholds.tolist()
         all_results["_threshold_model"] = best_model_name
+        # Also optimise pair-specific DS/Grok threshold
+        from src.threshold_optimizer import optimize_ds_grok_threshold
+        pair_thr = optimize_ds_grok_threshold(oof_proba_arr, y)
+        all_results["_ds_grok_pair_threshold"] = pair_thr
         if experiment_dir is not None:
             save_json(
-                {"model": best_model_name, "thresholds": thresholds.tolist()},
+                {
+                    "model": best_model_name,
+                    "thresholds": thresholds.tolist(),
+                    "ds_grok_pair_threshold": pair_thr,
+                },
                 experiment_dir / "thresholds.json",
             )
     else:
@@ -402,4 +412,63 @@ def train_final_model(
         joblib.dump(pipeline, save_path)
         logger.info(f"  Pipeline saved to: {save_path}")
 
+        # ── Feature importance (training-time only, no inference overhead) ────
+        fi_path = str(Path(save_path).with_suffix("")) + "_feature_importance.csv"
+        _save_feature_importance(pipeline, fi_path)
+
     return pipeline
+
+
+# ── Feature importance helper ─────────────────────────────────────────────────
+
+def _save_feature_importance(pipeline: Pipeline, save_path: str, top_n: int = 50) -> None:
+    """
+    Extract top-N TF-IDF features per class from the trained LR/Ridge classifier
+    and write them to a CSV file.  Training-time only — zero inference overhead.
+    """
+    from src.constants import LABEL_NAMES
+    try:
+        classifier = pipeline.named_steps.get("classifier")
+        feature_union = pipeline.named_steps.get("features")
+
+        # Unwrap TwoStageClassifier — use its 6-class base
+        if hasattr(classifier, "base_clf_"):
+            classifier = classifier.base_clf_
+
+        if classifier is None or not hasattr(classifier, "coef_"):
+            logger.info("  Feature importance: classifier has no coef_, skipping.")
+            return
+
+        # Build feature name list from the fitted FeatureUnion transformers
+        feature_names = []
+        for tname, transformer in feature_union.transformer_list:
+            try:
+                names = transformer.get_feature_names_out()
+                feature_names.extend([f"{tname}__{n}" for n in names])
+            except Exception:
+                pass
+
+        coef = classifier.coef_       # (n_classes, n_features)
+        classes = getattr(classifier, "classes_", list(range(coef.shape[0])))
+
+        rows = []
+        for i, cls in enumerate(classes):
+            if i >= coef.shape[0]:
+                break
+            cls_coef = coef[i]
+            top_idx = np.argsort(cls_coef)[::-1][:top_n]
+            cls_name = LABEL_NAMES[cls] if cls < len(LABEL_NAMES) else str(cls)
+            for rank, idx in enumerate(top_idx):
+                fname = feature_names[idx] if idx < len(feature_names) else f"feat_{idx}"
+                rows.append({
+                    "class_id":   int(cls),
+                    "class_name": cls_name,
+                    "rank":       rank + 1,
+                    "feature":    fname,
+                    "coefficient": round(float(cls_coef[idx]), 5),
+                })
+
+        pd.DataFrame(rows).to_csv(save_path, index=False)
+        logger.info(f"  Feature importance saved to: {save_path}")
+    except Exception as e:
+        logger.warning(f"  Feature importance export failed: {e}")

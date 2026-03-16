@@ -46,6 +46,7 @@ def predict(
     pipeline: Pipeline,
     X_text: List[str],
     thresholds: Union[np.ndarray, None] = None,
+    ds_grok_pair_threshold: Union[float, None] = None,
 ) -> np.ndarray:
     """
     Run inference and return integer label predictions.
@@ -56,6 +57,10 @@ def predict(
     X_text     : list of raw text strings
     thresholds : optional (n_classes,) per-class scale factors from threshold_optimizer.
                  If provided AND the pipeline has predict_proba, thresholds are applied.
+    ds_grok_pair_threshold : optional float in [0, 1].
+                 If set, applies a pair-specific DS/Grok ratio threshold as a
+                 post-processor after global thresholds.  Only affects samples
+                 where DS and Grok are the top-2 candidates.
 
     Returns
     -------
@@ -73,11 +78,32 @@ def predict(
             from src.threshold_optimizer import apply_thresholds
             preds = apply_thresholds(proba, np.array(thresholds)).astype(int)
             logger.info("  Applied per-class thresholds to predictions.")
+            if ds_grok_pair_threshold is not None:
+                from src.threshold_optimizer import apply_ds_grok_pair_threshold
+                preds = apply_ds_grok_pair_threshold(
+                    proba, preds, ds_grok_pair_threshold
+                )
+                logger.info(
+                    f"  Applied DS/Grok pair threshold: {ds_grok_pair_threshold:.3f}"
+                )
         except Exception as e:
             logger.warning(f"  Threshold application failed ({e}), falling back to predict()")
             preds = pipeline.predict(X_text).astype(int)
     else:
-        preds = pipeline.predict(X_text).astype(int)
+        if ds_grok_pair_threshold is not None and hasattr(pipeline, "predict_proba"):
+            try:
+                proba = pipeline.predict_proba(X_text)
+                preds = pipeline.predict(X_text).astype(int)
+                from src.threshold_optimizer import apply_ds_grok_pair_threshold
+                preds = apply_ds_grok_pair_threshold(proba, preds, ds_grok_pair_threshold)
+                logger.info(
+                    f"  Applied DS/Grok pair threshold (no global thresh): {ds_grok_pair_threshold:.3f}"
+                )
+            except Exception as e:
+                logger.warning(f"  Pair threshold application failed ({e}), using predict()")
+                preds = pipeline.predict(X_text).astype(int)
+        else:
+            preds = pipeline.predict(X_text).astype(int)
 
     # Sanity check: labels must be in valid range
     out_of_range = preds[(preds < MIN_LABEL) | (preds > MAX_LABEL)]

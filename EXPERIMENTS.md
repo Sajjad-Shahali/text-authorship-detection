@@ -149,17 +149,182 @@ Then submit artifacts/submissions/submission_latest.csv to Kaggle.
 
 ---
 
-## Run 4 — (planned)
-**Target**: Kaggle LB > 0.93
+## Run 4 — Two-Stage Classifier + DeepSeek Boost + Function-Word TF-IDF
+**Date**: 2026-03-16
+**Kaggle public LB**: **0.91089** (rank 10/16) — submitted ensemble_soft (CV winner)
+**Target**: > 0.90 LB (fix DeepSeek recall=0.59, 31 DS->Grok errors)
 
-**Planned changes** (if Run 2 does not reach ~0.93+):
-1. **Reduce overfit gap**: Add stronger L2 regularization (C=0.1 for LR), or increase
-   min_df to reduce vocabulary size and force generalization
-2. **Seed averaging**: Run logistic_regression_balanced with 5 seeds (42,123,456,789,2024),
-   average the predicted probabilities → more stable minority class predictions
-3. **Hierarchical classifier**: Human vs AI (binary) → which AI (5-class)
-   - Motivated by: Human (1520) is much easier; binary stage reduces AI-vs-AI confusion
-4. **DeepSeek-specific features**: Add features specifically designed to catch DeepSeek's
-   style (low punctuation variety score = stdev of punctuation rates)
-5. **Repeated stratified CV with multiple seeds** to get a more reliable CV estimate
-   and close the CV → LB gap
+### Root cause of Run 3 errors (GPT analysis)
+- 31/80 DeepSeek samples predicted as Grok
+- DeepSeek F1 ≈ 0.59 — the single worst class
+- DeepSeek and Grok have similar AI writing style; the 6-class model can't sharply
+  distinguish them using the same boundary as all other classes
+
+### Changes from Run 3
+1. **`two_stage_lr` model** (new): Two-stage classifier
+   - Stage 1: full 6-class LR(balanced, C=0.5) trained on all 2400 samples
+   - Stage 2: binary DeepSeek-vs-Grok LR(balanced, C=2.0) trained only on
+     DeepSeek+Grok samples (240 samples, simpler 2-class problem)
+   - At inference: stage-1 predicts; if prediction is DS or Grok → stage-2 overrides
+   - predict_proba: redistributes DS+Grok probability mass via binary stage
+   - Hypothesis: a dedicated decision boundary beats sharing it with 4 other classes
+
+2. **`lr_deepseek_boost` model** (new): Custom class weights
+   - Balanced weights + DeepSeek weight ×2.0 = class 1 weight ≈ 10.0
+   - Forces the model to focus harder on DeepSeek recall
+   - Config: `models.deepseek_boost: 2.0`
+
+3. **Function-word TF-IDF** (new 4th FeatureUnion component)
+   - Fixed vocabulary of ~130 function/connector words
+   - Captures style fingerprint (how author connects ideas) not topic
+   - Different LLMs have very distinct rates: DeepSeek heavy on "however/therefore/moreover",
+     Grok more varied, Human uses "and/but/so" far more
+   - Config: `features.function_word_tfidf.enabled: true`
+
+4. **char TF-IDF min_df: 4 → 2**
+   - Exposes rare but class-specific char n-grams
+   - e.g., DeepSeek's typical punctuation sequences like ": \n" after bullets
+
+5. **Report**: `_feature_importance.csv` saved alongside the best model — shows top-50
+   TF-IDF features per class (training-only, zero inference overhead)
+
+### How to run
+```
+cd d:\hachaton\text-authorship-detection
+.env\Scripts\activate
+python main_train.py --config configs/config.yaml
+python main_infer.py --config configs/config.yaml
+```
+Then submit `artifacts/submissions/submission_latest.csv` to Kaggle.
+
+### Run 4 actual results (OOF CV)
+| Model                        | CV Macro F1 | DS→Grok | Grok→DS |
+|------------------------------|-------------|---------|---------|
+| ensemble_soft  (submitted)   | **0.9321**  | 27      | 8       |
+| logistic_regression_balanced | 0.9300      | —       | —       |
+| lr_seed_avg                  | 0.9300      | —       | —       |
+| two_stage_lr                 | 0.9295      | 19 (-8) | 19 (+11)|
+| lr_deepseek_boost            | 0.9275      | —       | —       |
+
+**Diagnosis**: two_stage_lr reduced DS→Grok errors but over-reclassified 11 extra Grok→DS.
+Root cause: binary stage with class_weight='balanced' + C=2.0 was too aggressive toward DS.
+
+---
+
+## Run 5 — Smart Margin Trigger + ensemble_two_stage
+**Date**: 2026-03-16
+**Kaggle public LB**: (pending)
+**Target**: > 0.93 LB, rank top-5
+
+### Root cause fix for Run 4 over-correction
+Run 4's two_stage_lr triggered stage-2 for ALL predicted DS/Grok samples, even when the
+base model was highly confident it was Grok (e.g. P(Grok)=0.85). This led to 11 Grok
+samples being wrongly reclassified as DS.
+
+Fix: **margin trigger** — only invoke stage-2 when |P(DS)-P(Grok)| < 0.40 (base uncertain).
+- Clear Grok (margin > 0.40): trust base, don't reclassify
+- Uncertain (margin < 0.40): use binary specialist to refine the boundary
+
+### Changes from Run 4
+1. **`TwoStageClassifier` updated**:
+   - New param: `margin_trigger_gap` (default None, set to 0.40 for conservative)
+   - New param: `binary_ds_threshold` (default 0.50, 0.52 for conservative)
+   - Default binary: C=1.0, class_weight=None (natural 1:2 DS:Grok ratio)
+   - All existing two_stage_lr behaviour preserved (no margin trigger = old behaviour)
+
+2. **`two_stage_conservative` model** (new):
+   - margin_trigger_gap=0.40: only refine when base uncertain
+   - binary_ds_threshold=0.52: slightly conservative DS prediction
+   - binary class_weight=None: natural 1:2 ratio avoids over-predicting DS
+
+3. **`ensemble_two_stage` model** (new — likely best):
+   - VotingClassifier(soft) of 3 diverse models:
+     - `ensemble_soft`: best overall calibration, best Grok recall (0.9321 CV)
+     - `two_stage_conservative`: smarter DS/Grok boundary
+     - `lr_deepseek_boost`: nudges DS probabilities up across the board
+   - Averaging reduces variance; all 3 have predict_proba → proper soft voting
+
+4. **`main_submit.py` removed** — everything done via main_train.py + main_infer.py
+
+5. **`main_infer.py` updated**:
+   - `--list-models`: lists all .joblib files under artifacts/ with their sizes
+   - `--model <path>`: already existed, now clearly documented in docstring
+
+### Config tuning knobs (try adjusting these)
+- `models.two_stage_margin_gap: 0.40`  — raise → less conservative, lower → more conservative
+- `models.two_stage_ds_threshold: 0.52` — raise → harder for binary to predict DS
+
+### How to run
+```
+cd d:\hachaton\text-authorship-detection
+.env\Scripts\activate
+python main_train.py --config configs/config.yaml
+python main_infer.py --config configs/config.yaml
+
+# Run inference with a specific model from a previous run:
+python main_infer.py --model artifacts/experiments/2026-03-16_161401_run/best_model.joblib
+
+# List all saved models:
+python main_infer.py --list-models
+```
+
+---
+
+## Run 6 — DS/Grok Targeted Improvements + Pair Threshold
+**Date**: 2026-03-16
+**Kaggle public LB**: (pending — run main_train.py then main_infer.py)
+**Target**: > 0.93 LB — fix DeepSeek recall from 0.62
+
+### Root cause analysis of DS->Grok=27 errors
+From error_analysis.csv, the 27 false-negative DeepSeek samples split into two buckets:
+1. **Short factual/definition style** (majority): 1-2 sentence factual texts about
+   science, history, geography. No markdown, no lists. Visually indistinguishable
+   from Grok's concise factual style.
+2. **Long encyclopedic style** (minority): Multi-paragraph historical texts without
+   DeepSeek's typical structured output (headers, numbered lists).
+Both types lack DeepSeek's primary style markers -> the model falls back to topic,
+which is unreliable since DS and Grok cover the same topics.
+
+### Changes from Run 5
+1. **43 stylometric features** (up from 37) — 6 new DS/Grok discriminators:
+   - `first_sent_words`: DS short texts often start with a precise one-line definition
+   - `proper_noun_density`: factual DS texts tend to reference more named entities
+   - `hedge_rate`: uncertainty markers (may/might/could/possibly) — Grok hedges more
+   - `question_per_sent`: DS almost never asks rhetorical questions
+   - `sent_range`: max-min sentence word count (DS more length-uniform)
+   - `text_len_log`: log of text length (length bucket is a style discriminator)
+
+2. **`two_stage_top2` model** (new):
+   - Trigger: fires ONLY when DS AND Grok are BOTH in the top-2 predicted classes
+   - More precise than margin trigger — doesn't fire when the runner-up is Claude/Human
+   - Binary stage: LR(balanced, C=1.5) — less regularised than conservative variant
+   - Config: `binary_ds_threshold=0.50` (balanced DS/Grok prediction)
+   - Hypothesis: current margin trigger was firing on ambiguous DS-vs-Claude/Human cases
+     that the binary DS/Grok specialist then forced into DS or Grok incorrectly
+
+3. **Pair-specific DS/Grok threshold** (new post-processing):
+   - After global classification, apply ratio threshold `P(DS)/(P(DS)+P(Grok))`
+   - Optimised on OOF data via grid search [0.25, 0.75] to maximise macro F1
+   - Only affects samples where `P(DS)+P(Grok) > 0.15` — safe, no other-class leakage
+   - Saved to `artifacts/thresholds.json` as `ds_grok_pair_threshold`
+   - Applied automatically in `main_infer.py`
+
+4. **Bug fix (High)**: stale threshold warning in `main_infer.py`
+   - Now warns when loaded threshold model name differs from `--model` path
+   - Prevents silent application of wrong-model thresholds
+
+5. **Bug fix (Medium)**: single-model CV branch now computes and saves thresholds
+   - Previously the `elif run_cv` branch skipped threshold computation
+   - Now saves `thresholds.json` + pair threshold in both paths
+
+6. **Removed from run_models**: `two_stage_conservative`, `ensemble_two_stage`,
+   `two_stage_lr` — all confirmed worse than `ensemble_soft` in Run 4/5
+
+### How to run
+```
+cd d:\hachaton\text-authorship-detection
+.env\Scripts\activate
+python main_train.py --config configs/config.yaml
+python main_infer.py --config configs/config.yaml
+```
+Then submit `artifacts/submissions/submission_latest.csv` to Kaggle.
