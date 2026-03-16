@@ -45,14 +45,17 @@ def load_pipeline(path: str) -> Pipeline:
 def predict(
     pipeline: Pipeline,
     X_text: List[str],
+    thresholds: Union[np.ndarray, None] = None,
 ) -> np.ndarray:
     """
     Run inference and return integer label predictions.
 
     Parameters
     ----------
-    pipeline : fitted sklearn Pipeline
-    X_text : list of raw text strings
+    pipeline   : fitted sklearn Pipeline
+    X_text     : list of raw text strings
+    thresholds : optional (n_classes,) per-class scale factors from threshold_optimizer.
+                 If provided AND the pipeline has predict_proba, thresholds are applied.
 
     Returns
     -------
@@ -62,8 +65,19 @@ def predict(
         raise ValueError("predict() received empty input list.")
 
     logger.info(f"Running inference on {len(X_text)} samples...")
-    preds = pipeline.predict(X_text)
-    preds = preds.astype(int)
+
+    # Apply per-class thresholds when available (improves minority-class recall)
+    if thresholds is not None and hasattr(pipeline, "predict_proba"):
+        try:
+            proba = pipeline.predict_proba(X_text)
+            from src.threshold_optimizer import apply_thresholds
+            preds = apply_thresholds(proba, np.array(thresholds)).astype(int)
+            logger.info("  Applied per-class thresholds to predictions.")
+        except Exception as e:
+            logger.warning(f"  Threshold application failed ({e}), falling back to predict()")
+            preds = pipeline.predict(X_text).astype(int)
+    else:
+        preds = pipeline.predict(X_text).astype(int)
 
     # Sanity check: labels must be in valid range
     out_of_range = preds[(preds < MIN_LABEL) | (preds > MAX_LABEL)]

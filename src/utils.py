@@ -35,8 +35,11 @@ def get_logger(name: str, log_file: str = None, level: int = logging.INFO) -> lo
         datefmt="%Y-%m-%d %H:%M:%S",
     )
 
-    # Console handler
-    ch = logging.StreamHandler(sys.stdout)
+    # Console handler — force UTF-8 on Windows to avoid cp1252 encode errors
+    import io
+    stdout_utf8 = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace") \
+        if hasattr(sys.stdout, "buffer") else sys.stdout
+    ch = logging.StreamHandler(stdout_utf8)
     ch.setFormatter(fmt)
     logger.addHandler(ch)
 

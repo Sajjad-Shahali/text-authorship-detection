@@ -153,7 +153,7 @@ def log_fold_metrics(
 ) -> None:
     """Log per-fold train/val F1 and flag potential overfitting."""
     gap = train_f1 - val_f1
-    flag = " ⚠ HIGH OVERFIT GAP" if gap > 0.10 else ""
+    flag = " [!] HIGH OVERFIT GAP" if gap > 0.10 else ""
     logger.info(
         f"  Fold {fold+1}: train_f1={train_f1:.4f}  val_f1={val_f1:.4f}"
         f"  gap={gap:+.4f}{flag}"

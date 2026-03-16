@@ -68,13 +68,26 @@ def main():
     model_path = args.model or paths["best_model_file"]
     pipeline = load_pipeline(model_path)
 
+    # ── Load per-class thresholds (if available from threshold optimization) ───
+    from src.utils import load_json
+    thresholds = None
+    threshold_path = Path(paths.get("artifacts_dir", "artifacts")) / "thresholds.json"
+    if threshold_path.exists():
+        try:
+            thresh_data = load_json(str(threshold_path))
+            thresholds = thresh_data.get("thresholds")
+            logger.info(f"Loaded per-class thresholds from: {threshold_path}")
+            logger.info(f"  Thresholds: {[round(t,3) for t in thresholds]}")
+        except Exception as e:
+            logger.warning(f"  Could not load thresholds: {e}")
+
     # ── Load test data ─────────────────────────────────────────────────────────
     test_df = load_test(paths["test_file"])
     X_test = get_test_texts(test_df)
     logger.info(f"Test samples: {len(X_test)}")
 
     # ── Predict ────────────────────────────────────────────────────────────────
-    preds = predict(pipeline, X_test)
+    preds = predict(pipeline, X_test, thresholds=thresholds)
     logger.info(f"Generated {len(preds)} predictions.")
 
     # ── Build submission ───────────────────────────────────────────────────────

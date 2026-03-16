@@ -1,8 +1,15 @@
 # ============================================================
-# MALTO Text Authorship Detection — Configuration
+# MALTO Text Authorship Detection — Configuration  (Run 3)
 # ============================================================
-# All parameters are controlled here. No hardcoded values in src/.
-# Supports local and Kaggle execution via path overrides.
+# Changes from Run 2:
+#   - Stylometric features: 34 -> 37 (punct_variety, sent_length_cv, transition_word_rate)
+#   - word TF-IDF max_features: 100k -> 50k  (less overfit)
+#   - char TF-IDF max_features: 100k -> 50k  (less overfit)
+#   - word min_df: 2 -> 3, char min_df: 3 -> 4  (remove rare noise)
+#   - LR C: 1.0 -> 0.5  (more regularization to close CV-LB gap)
+#   - Added lr_seed_avg model (5-seed average, best for minority recall)
+#   - use_best_fold_model: true  (use best CV fold instead of all-data refit)
+# ============================================================
 
 # -----------------------------------------------------------
 # Paths
@@ -16,6 +23,7 @@ paths:
   analysis_dir: "artifacts/analysis"
   experiments_dir: "artifacts/experiments"
   logs_dir: "artifacts/logs"
+  plots_dir: "artifacts/plots"
 
   train_file: "data/train.csv"
   test_file: "data/test.csv"
@@ -30,7 +38,7 @@ preprocessing:
   normalize_unicode: true
   strip_whitespace: true
   remove_repeated_spaces: true
-  lowercase: false          # Keep False: capitalization is a stylistic signal
+  lowercase: false          # Keep False: capitalisation is a stylistic signal
   remove_punctuation: false # Keep False: punctuation is discriminative
   remove_numbers: false     # Keep False: numeric patterns can distinguish sources
 
@@ -38,23 +46,27 @@ preprocessing:
 # Feature Engineering
 # -----------------------------------------------------------
 features:
-  # Word-level TF-IDF
+  # Word-level TF-IDF — reduced from 100k to 50k to fight generalization gap
   word_tfidf:
     ngram_range: [1, 2]
-    max_features: 100000
-    min_df: 2
+    max_features: 50000
+    min_df: 3              # raised from 2: remove hapax words that don't generalise
     max_df: 0.95
     sublinear_tf: true
     analyzer: "word"
 
-  # Character-level TF-IDF
+  # Character-level TF-IDF — reduced from 100k to 50k
   char_tfidf:
-    ngram_range: [3, 5]
-    max_features: 100000
-    min_df: 3
+    ngram_range: [2, 6]
+    max_features: 50000
+    min_df: 4              # raised from 3
     max_df: 0.95
     sublinear_tf: true
     analyzer: "char_wb"
+
+  # Stylometric hand-crafted features (37 features)
+  stylometric:
+    enabled: true
 
 # -----------------------------------------------------------
 # Cross-Validation
@@ -65,31 +77,69 @@ validation:
   shuffle: true
 
 # -----------------------------------------------------------
+# Learning Curves
+# -----------------------------------------------------------
+learning_curve:
+  enabled: false
+  n_points: 6
+
+# -----------------------------------------------------------
 # Models
 # -----------------------------------------------------------
 models:
-  # Which models to compare in CV
   run_models:
-    - "logistic_regression"
-    - "linear_svc"
-    - "complement_nb"
+    - "logistic_regression_balanced"   # Run 2 winner: 0.9140 CV F1
+    - "lr_seed_avg"                    # NEW: 5-seed average (stable minority recall)
+    - "ensemble_soft"                  # Soft calibrated voting
+    - "sgd_hinge"                      # Fast baseline reference
 
-  # Model to use for final training and submission
-  best_model: "logistic_regression"
+  # lr_seed_avg is expected to beat plain logistic_regression_balanced
+  # on minority classes (DeepSeek/Claude) due to variance reduction
+  best_model: "lr_seed_avg"
 
+  # ── Model hyperparameters ────────────────────────────────────────────────
   logistic_regression:
-    C: 1.0
+    C: 0.5
     max_iter: 1000
     solver: "lbfgs"
-    class_weight: null   # set to "balanced" if class imbalance is severe
-    random_state: 42
-    n_jobs: -1
+    class_weight: null
+
+  logistic_regression_balanced:
+    C: 0.5               # reduced from 1.0: more regularization
+    max_iter: 1000
+    solver: "lbfgs"
+    # class_weight is forced to "balanced" in code
 
   linear_svc:
     C: 0.1
     max_iter: 2000
     class_weight: null
-    random_state: 42
+
+  linear_svc_balanced:
+    C: 0.1
+    max_iter: 2000
+
+  calibrated_svc:
+    C: 0.1
+    max_iter: 2000
+    class_weight: "balanced"
+
+  sgd_log:
+    alpha: 0.0001
+    max_iter: 100
+
+  sgd_hinge:
+    alpha: 0.0001
+    max_iter: 100
+
+  ridge_classifier:
+    alpha: 1.0
+    class_weight: "balanced"
+
+  passive_aggressive:
+    C: 0.1
+    max_iter: 1000
+    class_weight: "balanced"
 
   complement_nb:
     alpha: 0.1
@@ -98,17 +148,18 @@ models:
 # Training
 # -----------------------------------------------------------
 training:
-  run_cv: true             # Set false to skip CV and go straight to final fit
+  run_cv: true
   run_model_comparison: true
   save_artifacts: true
   verbose: true
   random_state: 42
+  use_best_fold_model: true   # Use best CV fold model instead of full refit
 
 # -----------------------------------------------------------
 # Error Analysis
 # -----------------------------------------------------------
 analysis:
-  top_n_errors: 50         # Number of misclassified examples to save
+  top_n_errors: 50
   save_confusion_matrix: true
   save_classification_report: true
 
@@ -117,13 +168,12 @@ analysis:
 # -----------------------------------------------------------
 experiment:
   enabled: true
-  name_prefix: "run"       # Experiment folder prefix
+  name_prefix: "run"
 
 # -----------------------------------------------------------
 # Kaggle / Environment
 # -----------------------------------------------------------
 environment:
-  # Set to "kaggle" when running on Kaggle; overrides paths above
-  mode: "local"            # "local" or "kaggle"
+  mode: "local"
   kaggle_input_dir: "/kaggle/input/malto-hackathon"
   kaggle_working_dir: "/kaggle/working"

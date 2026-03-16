@@ -1,19 +1,24 @@
 """
 train.py
 --------
-Training logic: cross-validation loop, model comparison, and final fit.
+Training logic: cross-validation loop, model comparison, learning curves,
+and final fit.
 
 Anti-leakage guarantee:
   The full feature pipeline (Preprocessor + FeatureUnion TF-IDF) is rebuilt
   and fitted INSIDE each CV fold. No vectorizer state bleeds across folds.
 
-Outputs:
+Outputs per model:
   - CV metrics per fold
-  - OOF (out-of-fold) predictions for full-dataset error analysis
+  - OOF predictions for full-dataset error analysis
+  - Learning curve data (computed after CV)
+  - Overfitting plot (train vs val per fold)
+  - Learning curve plot
   - Model comparison table
   - Final trained pipeline (on all training data)
 """
 
+import copy
 import time
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
@@ -35,7 +40,7 @@ from src.evaluate import (
     summarise_cv_results,
 )
 from src.features import build_feature_union
-from src.models import get_all_models, get_model
+from src.models import get_model
 from src.preprocess import Preprocessor
 from src.utils import ensure_dir, get_logger, save_json, save_text
 
@@ -49,19 +54,17 @@ def build_pipeline(model_name: str, config: Dict) -> Pipeline:
     Build a full sklearn Pipeline:
       Preprocessor → FeatureUnion(TF-IDF) → Classifier
 
-    The pipeline is unfitted. Fitting it inside a CV fold guarantees
-    no leakage from val into train features.
+    Unfitted. Must be fitted inside each CV fold to prevent leakage.
     """
     preprocessor = Preprocessor.from_config(config)
     feature_union = build_feature_union(config)
     classifier = get_model(model_name, config)
 
-    pipeline = Pipeline([
+    return Pipeline([
         ("preprocessor", preprocessor),
         ("features", feature_union),
         ("classifier", classifier),
     ])
-    return pipeline
 
 
 # ── Cross-validation ──────────────────────────────────────────────────────────
@@ -72,12 +75,13 @@ def run_cross_validation(
     model_name: str,
     config: Dict,
     experiment_dir: Optional[Path] = None,
+    plots_dir: Optional[Path] = None,
 ) -> Dict:
     """
     Run StratifiedKFold CV for a single model.
 
-    Returns a results dict with per-fold and aggregate metrics,
-    plus OOF predictions.
+    Returns results dict with per-fold metrics, OOF predictions,
+    and aggregate summary.
     """
     val_cfg = config.get("validation", {})
     n_splits = val_cfg.get("n_splits", 5)
@@ -88,9 +92,11 @@ def run_cross_validation(
 
     X_arr = np.array(X, dtype=object)
     oof_preds = np.zeros(len(y), dtype=int)
-    oof_proba = None  # filled if model supports predict_proba
+    oof_proba = None
 
     fold_metrics = []
+    best_fold_pipeline = None
+    best_fold_val_f1   = -1.0
 
     logger.info(f"  Running {n_splits}-fold CV for model: {model_name}")
 
@@ -98,9 +104,9 @@ def run_cross_validation(
         fold_start = time.time()
 
         X_train_fold = X_arr[train_idx].tolist()
-        X_val_fold = X_arr[val_idx].tolist()
+        X_val_fold   = X_arr[val_idx].tolist()
         y_train_fold = y[train_idx]
-        y_val_fold = y[val_idx]
+        y_val_fold   = y[val_idx]
 
         # Build and fit a FRESH pipeline — critical anti-leakage step
         pipeline = build_pipeline(model_name, config)
@@ -108,13 +114,18 @@ def run_cross_validation(
 
         # Train metrics (overfitting diagnostic)
         train_preds = pipeline.predict(X_train_fold)
-        train_f1 = compute_macro_f1(y_train_fold, train_preds)
+        train_f1    = compute_macro_f1(y_train_fold, train_preds)
 
         # Validation metrics
         val_preds = pipeline.predict(X_val_fold)
-        val_f1 = compute_macro_f1(y_val_fold, val_preds)
+        val_f1    = compute_macro_f1(y_val_fold, val_preds)
 
         oof_preds[val_idx] = val_preds
+
+        # Track best fold (for save_best_fold option)
+        if val_f1 > best_fold_val_f1:
+            best_fold_val_f1   = val_f1
+            best_fold_pipeline = copy.deepcopy(pipeline)
 
         # Collect probabilities if available
         if hasattr(pipeline, "predict_proba"):
@@ -133,30 +144,32 @@ def run_cross_validation(
         fold_metrics.append({
             "fold": fold + 1,
             "train_macro_f1": round(float(train_f1), 4),
-            "val_macro_f1": round(float(val_f1), 4),
+            "val_macro_f1":   round(float(val_f1), 4),
         })
 
     # Aggregate
-    summary = summarise_cv_results(fold_metrics)
-    logger.info(
-        f"  {model_name} CV → "
-        f"mean_val_f1={summary['mean_val_macro_f1']:.4f} ± {summary['std_val_macro_f1']:.4f}"
-    )
-
-    # OOF classification report and confusion matrix
+    summary    = summarise_cv_results(fold_metrics)
     oof_report = generate_classification_report(y, oof_preds)
-    oof_cm = generate_confusion_matrix(y, oof_preds)
+    oof_cm     = generate_confusion_matrix(y, oof_preds)
     oof_metrics = compute_metrics(y, oof_preds)
 
+    logger.info(
+        f"  {model_name} CV => "
+        f"mean_val_f1={summary['mean_val_macro_f1']:.4f} "
+        f"+/- {summary['std_val_macro_f1']:.4f}"
+    )
+
     results = {
-        "model_name": model_name,
-        "fold_metrics": fold_metrics,
-        "summary": summary,
-        "oof_metrics": oof_metrics,
+        "model_name":                model_name,
+        "fold_metrics":              fold_metrics,
+        "summary":                   summary,
+        "oof_metrics":               oof_metrics,
         "oof_classification_report": oof_report,
+        "oof_proba":                 oof_proba.tolist() if oof_proba is not None else None,
+        "best_fold_val_f1":          round(float(best_fold_val_f1), 4),
     }
 
-    # Save per-model artifacts if experiment_dir given
+    # ── Per-model artifact saving ─────────────────────────────────────────────
     if experiment_dir is not None:
         model_dir = experiment_dir / model_name
         ensure_dir(model_dir)
@@ -165,13 +178,80 @@ def run_cross_validation(
         oof_cm.to_csv(model_dir / "confusion_matrix.csv")
         logger.info(f"  Saved CV artifacts to: {model_dir}")
 
-        # Error analysis
+        # Error analysis (requires probabilities)
         if oof_proba is not None:
             top_n = config.get("analysis", {}).get("top_n_errors", 50)
             err_df = error_analysis(X, y, oof_preds, oof_proba, top_n=top_n)
             err_df.to_csv(model_dir / "error_analysis.csv", index=False)
 
+        # Save best fold model (trained on 80% data — better generalization)
+        if best_fold_pipeline is not None:
+            joblib.dump(best_fold_pipeline, model_dir / "best_fold_model.joblib")
+            logger.info(
+                f"  Best fold model saved (val_f1={best_fold_val_f1:.4f}): "
+                f"{model_dir / 'best_fold_model.joblib'}"
+            )
+
+    # ── Overfitting plot ──────────────────────────────────────────────────────
+    if plots_dir is not None:
+        from src.plots import plot_overfitting, plot_confusion_matrix
+        plot_overfitting(
+            model_name, fold_metrics,
+            save_path=str(plots_dir / f"overfitting_{model_name}.png"),
+        )
+        plot_confusion_matrix(
+            oof_cm, model_name,
+            save_path=str(plots_dir / f"confusion_matrix_{model_name}.png"),
+        )
+
     return results
+
+
+# ── Learning curve ────────────────────────────────────────────────────────────
+
+def run_learning_curve(
+    X: List[str],
+    y: np.ndarray,
+    model_name: str,
+    config: Dict,
+    plots_dir: Optional[Path] = None,
+) -> Optional[Dict]:
+    """
+    Compute and plot the learning curve for one model.
+    Uses sklearn.model_selection.learning_curve with 3-fold CV.
+
+    Returns a dict of curve data, or None if disabled in config.
+    """
+    lc_cfg = config.get("learning_curve", {})
+    if not lc_cfg.get("enabled", True):
+        return None
+
+    logger.info(f"  Computing learning curve for: {model_name}")
+    pipeline = build_pipeline(model_name, config)
+
+    try:
+        from src.plots import compute_learning_curve, plot_learning_curve
+        ts, tm, ts_std, vm, vs_std = compute_learning_curve(pipeline, X, y, config)
+
+        lc_data = {
+            "train_sizes": ts.tolist(),
+            "train_mean":  tm.tolist(),
+            "train_std":   ts_std.tolist(),
+            "val_mean":    vm.tolist(),
+            "val_std":     vs_std.tolist(),
+        }
+
+        if plots_dir is not None:
+            plot_learning_curve(
+                model_name, ts, tm, ts_std, vm, vs_std,
+                save_path=str(plots_dir / f"learning_curve_{model_name}.png"),
+            )
+
+        return lc_data
+
+    except Exception as e:
+        logger.warning(f"  Learning curve failed for {model_name}: {e}")
+        return None
 
 
 # ── Model comparison ──────────────────────────────────────────────────────────
@@ -181,16 +261,19 @@ def run_model_comparison(
     y: np.ndarray,
     config: Dict,
     experiment_dir: Optional[Path] = None,
-) -> Tuple[pd.DataFrame, str]:
+    plots_dir: Optional[Path] = None,
+) -> Tuple[pd.DataFrame, str, Dict]:
     """
-    Run CV for all configured models and return a comparison DataFrame
-    along with the name of the best model (highest mean_val_macro_f1).
+    Run CV + learning curves for all configured models.
+
+    Returns (comparison_df, best_model_name, all_cv_results).
     """
-    model_cfg = config.get("models", {})
+    model_cfg  = config.get("models", {})
     run_models = model_cfg.get("run_models", ["logistic_regression"])
 
-    rows = []
-    all_results = {}
+    rows         = []
+    all_results  = {}
+    all_lc_data  = {}
 
     logger.info("=" * 60)
     logger.info("MODEL COMPARISON")
@@ -198,32 +281,86 @@ def run_model_comparison(
 
     for model_name in run_models:
         logger.info(f"\n[Model: {model_name}]")
-        results = run_cross_validation(X, y, model_name, config, experiment_dir)
+
+        # ── Cross-validation ──────────────────────────────────────────────────
+        results = run_cross_validation(
+            X, y, model_name, config,
+            experiment_dir=experiment_dir,
+            plots_dir=plots_dir,
+        )
         all_results[model_name] = results
-        summary = results["summary"]
+        summary    = results["summary"]
         oof_metrics = results["oof_metrics"]
 
         rows.append({
-            "model": model_name,
-            "mean_val_macro_f1": summary["mean_val_macro_f1"],
-            "std_val_macro_f1": summary["std_val_macro_f1"],
-            "mean_train_macro_f1": summary["mean_train_macro_f1"],
-            "mean_overfit_gap": summary["mean_overfit_gap"],
-            "oof_macro_f1": oof_metrics["macro_f1"],
-            "oof_accuracy": oof_metrics["accuracy"],
+            "model":                model_name,
+            "mean_val_macro_f1":    summary["mean_val_macro_f1"],
+            "std_val_macro_f1":     summary["std_val_macro_f1"],
+            "mean_train_macro_f1":  summary["mean_train_macro_f1"],
+            "mean_overfit_gap":     summary["mean_overfit_gap"],
+            "oof_macro_f1":         oof_metrics["macro_f1"],
+            "oof_accuracy":         oof_metrics["accuracy"],
         })
 
-    comparison_df = pd.DataFrame(rows).sort_values(
-        "mean_val_macro_f1", ascending=False
-    ).reset_index(drop=True)
+        # ── Learning curve ────────────────────────────────────────────────────
+        lc_data = run_learning_curve(X, y, model_name, config, plots_dir=plots_dir)
+        if lc_data:
+            all_lc_data[model_name] = lc_data
+
+    # ── Sort and rank ─────────────────────────────────────────────────────────
+    comparison_df = (
+        pd.DataFrame(rows)
+        .sort_values("mean_val_macro_f1", ascending=False)
+        .reset_index(drop=True)
+    )
 
     logger.info("\nModel Comparison:")
     logger.info("\n" + comparison_df.to_string(index=False))
 
-    # Determine best model
-    best_row = comparison_df.iloc[0]
-    best_model_name = best_row["model"]
-    logger.info(f"\nBest model: {best_model_name}  (val_f1={best_row['mean_val_macro_f1']:.4f})")
+    best_model_name = comparison_df.iloc[0]["model"]
+    logger.info(
+        f"\nBest model: {best_model_name}  "
+        f"(val_f1={comparison_df.iloc[0]['mean_val_macro_f1']:.4f})"
+    )
+
+    # ── Per-class threshold optimisation on OOF proba of best model ───────────
+    best_oof_proba = all_results[best_model_name].get("oof_proba")
+    if best_oof_proba is not None:
+        logger.info(f"\nOptimizing per-class thresholds for: {best_model_name}")
+        from src.threshold_optimizer import optimize_thresholds
+        oof_proba_arr = np.array(best_oof_proba)
+        thresholds = optimize_thresholds(oof_proba_arr, y)
+        all_results["_thresholds"] = thresholds.tolist()
+        all_results["_threshold_model"] = best_model_name
+        if experiment_dir is not None:
+            save_json(
+                {"model": best_model_name, "thresholds": thresholds.tolist()},
+                experiment_dir / "thresholds.json",
+            )
+    else:
+        logger.info(f"\n  Skipping threshold optimization ({best_model_name} has no predict_proba)")
+
+    # ── Summary plots ─────────────────────────────────────────────────────────
+    if plots_dir is not None:
+        from src.plots import (
+            plot_model_comparison,
+            plot_all_overfitting,
+            plot_all_learning_curves,
+        )
+
+        plot_model_comparison(
+            comparison_df,
+            save_path=str(plots_dir / "model_comparison.png"),
+        )
+        plot_all_overfitting(
+            {k: v for k, v in all_results.items() if not k.startswith("_")},
+            save_path=str(plots_dir / "overfitting_all_models.png"),
+        )
+        if all_lc_data:
+            plot_all_learning_curves(
+                all_lc_data,
+                save_path=str(plots_dir / "learning_curves_all_models.png"),
+            )
 
     return comparison_df, best_model_name, all_results
 
@@ -236,19 +373,27 @@ def train_final_model(
     model_name: str,
     config: Dict,
     save_path: Optional[str] = None,
+    best_fold_pipeline: Optional[Pipeline] = None,
 ) -> Pipeline:
     """
     Fit a full pipeline on ALL training data.
     This is the model used for test predictions.
     """
+    use_best_fold = config.get("training", {}).get("use_best_fold_model", False)
+
     logger.info("=" * 60)
     logger.info(f"FINAL TRAINING — model: {model_name}")
     logger.info(f"  Training samples: {len(X)}")
 
-    start = time.time()
-    pipeline = build_pipeline(model_name, config)
-    pipeline.fit(X, y)
-    elapsed = time.time() - start
+    if use_best_fold and best_fold_pipeline is not None:
+        pipeline = best_fold_pipeline
+        logger.info("  Using best CV fold model (NOT retrained on all data)")
+        elapsed = 0.0
+    else:
+        start    = time.time()
+        pipeline = build_pipeline(model_name, config)
+        pipeline.fit(X, y)
+        elapsed  = time.time() - start
 
     logger.info(f"  Final training completed in {elapsed:.1f}s")
 
