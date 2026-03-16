@@ -458,9 +458,139 @@ python main_train.py --config configs/config.yaml
 python main_infer.py --config configs/config.yaml
 ```
 
+### Run 8 actual results (OOF CV)
+| Model         | CV Macro F1 | OOF F1  | DS→Grok | Grok→DS | DS recall | DS F1 |
+|---------------|-------------|---------|---------|---------|-----------|-------|
+| ensemble_mlp  | **0.9350**  | 0.9360  | 22      | 12      | 0.69      | 0.75  |
+| mlp_svd       | 0.9340      | 0.9354  | 25      | 9       | 0.65      | 0.74  |
+| two_stage_top2| 0.9328      | 0.9339  | 21      | 14      | 0.70      | 0.74  |
+| ensemble_soft | 0.9272      | 0.9284  | 28      | 10      | 0.61      | 0.70  |
+
+**Kaggle LB result: 0.90978** (down from 0.91089 — MLP overfit to CV distribution).
+
+### Run 8 diagnosis
+The MLP DID break the linear CV ceiling (0.9328 → 0.9350), confirming that non-linear
+decision boundaries are beneficial. BUT the Kaggle LB dropped slightly (0.91089 → 0.90978).
+This means the MLP is learning patterns specific to the training distribution that do not
+generalise to the test set. Root causes:
+1. **Probability miscalibration**: MLP softmax outputs are often overconfident. The pair
+   threshold and global thresholds optimised on these OOF probabilities may mis-fire on test.
+2. **SVD instability**: TruncatedSVD fitted inside each CV fold can learn slightly different
+   subspaces. The final model's SVD (fitted on all 2400 samples) represents all training
+   vocabulary, while fold SVDs miss ~20% of terms. The test set may have features not in
+   the fold SVD subspace.
+3. **Randomness**: With only 600 test samples, a 5-label difference changes LB by ~0.008.
+
+Key observation: `mlp_svd` (pure MLP) has only 9 Grok→DS errors — much better than
+`two_stage_top2` (14). But `mlp_svd` has 25 DS→Grok vs 21 for top2. The two models are
+genuinely complementary in where they make errors.
+
 ### What to watch in results
 - If `mlp_svd` CV > 0.9328 → non-linear boundaries are helping
 - If DS recall improves from 0.70 → neural features are learning the DS/Grok interaction
 - If `ensemble_mlp` > both individually → orthogonal ensemble working as expected
 - Overfit gap: MLP with alpha=0.01 should have train_f1 ≈ 0.96-0.98 (not 1.0)
   If train_f1 = 1.0 → increase alpha (try 0.05 or 0.1)
+
+---
+
+## Run 9 — Stabilise MLP + Calibration + Weighted Ensemble
+**Date**: 2026-03-16
+**Kaggle public LB**: (not yet submitted — per-model submissions generated)
+**Best CV model**: `ensemble_mlp` — OOF 0.9360
+
+### Run 8 diagnosis → Run 9 fixes
+Run 8 showed MLP improves CV but hurt LB. Three targeted fixes:
+1. **Calibrate MLP probabilities** (GPT fix): raw MLP softmax is overconfident.
+   CalibratedClassifierCV (isotonic) reshapes probabilities to match true frequencies.
+   This should make the pair threshold and global thresholds work correctly on test data.
+2. **Mild DS boost** (GPT fix): instead of global class weight boost, apply 1.5x sample
+   weight specifically to DeepSeek in the MLP. More targeted than the 2x global boost
+   that created Grok→DS errors.
+3. **Weighted ensemble** (GPT + own): give MLP 2x vote vs two_stage_top2 in the ensemble.
+   MLP has lower overfit gap (0.059 vs 0.065) suggesting it generalises better.
+
+### Changes from Run 8
+1. **GPT fix**: `ensemble_mlp` now reads two-stage settings from config (was hardcoded)
+2. **GPT fix**: `mlp_svd` and `ensemble_mlp` now read ALL MLP params from `config.mlp`
+3. **`mlp_svd_ds_boost`** (new): TfidfMLPClassifier with DeepSeek sample weight ×1.5
+   - Mild boost: forces MLP to pay attention to DS errors without over-correcting
+4. **`mlp_svd_calibrated`** (new GPT): CalibratedClassifierCV(mlp_svd, cv=3, isotonic)
+   - Fixes overconfident MLP probabilities → better threshold calibration on test set
+5. **`ensemble_mlp_weighted`** (new GPT+own): VotingClassifier weights=[2,1] (mlp:top2)
+   - MLP has lower overfit gap → giving it 2x vote weight should improve test generalisation
+6. **Better verbose**: fold progress bars, running best-model tracker, per-model summaries
+7. **Per-model submissions**: each model folder gets its own submission CSV
+8. **Added `mlp.verbose` to config**: set `true` to see MLP loss per iteration
+
+### How to run
+```
+cd d:\hachaton\text-authorship-detection
+.env\Scripts\activate
+python main_train.py --config configs/config.yaml
+python main_infer.py --config configs/config.yaml
+```
+Submit `artifacts/submissions/submission_latest.csv` for best model.
+Per-model: submit each `artifacts/experiments/<run>/*/submission_*.csv` to compare.
+
+### Run 9 Actual Results
+| Model                   | CV F1  | OOF F1 | DS→Grok | Grok→DS |
+|-------------------------|--------|--------|---------|---------|
+| ensemble_mlp            | 0.9350 | 0.9360 | 22      | 12      |
+| mlp_svd                 | 0.9340 | 0.9354 | 25      | 9       |
+| ensemble_mlp_weighted   | 0.9329 | 0.9342 | —       | —       |
+| two_stage_top2          | 0.9328 | 0.9339 | 21      | 14      |
+| mlp_svd_calibrated      | 0.9184 | 0.9193 | —       | —       | ← FAILED
+| mlp_svd_ds_boost        | 0.9172 | 0.9155 | 15      | 28      | ← FAILED
+
+**Diagnosis:**
+- `mlp_svd_calibrated` FAILED: isotonic regression needs 500+ samples per class; DS=80.
+  Calibration noise dominated the signal. CV dropped -0.017 vs uncalibrated.
+- `mlp_svd_ds_boost` FAILED: DS recall improved (62/80) but Grok→DS exploded to 28.
+  Total DS+Grok confusion = 43 (worse than baseline 34).
+- `ensemble_mlp_weighted` provided no gain — MLP already dominates at equal weight.
+- Error analysis: DS→Grok and Grok→DS confused texts are identical length (~191 chars,
+  ~27 words). Semantic deadlock — DS/Grok both produce short encyclopedic factual sentences.
+
+---
+
+## Run 10 — LightGBM + Stacking Meta-Learner
+**Date**: 2026-03-16
+**Kaggle public LB**: (pending)
+**Target**: Exceed CV 0.9360 (ensemble_mlp) via gradient boosting + stacking
+
+### Run 9 diagnosis → Run 10 approach
+Three problems to address:
+1. **Linear ceiling**: LR/SVC all cap at 0.9328. MLP broke it but with calibration issues.
+   → Try LightGBM: gradient boosting over SVD space, different inductive bias from MLP.
+2. **Calibration**: MLP isotonic calibration needs more data than available (80 DS samples).
+   → Fix with sigmoid calibration (Platt scaling — only 2 params per class).
+3. **Ensemble diversity plateau**: soft vote of same-type models gives diminishing returns.
+   → Stacking meta-learner: learns WHEN each model is right, not just averages probabilities.
+
+### Changes from Run 9
+1. **`lgbm_svd`** (new): `TruncatedSVD(300)` + `LGBMClassifier` with balanced sample weights.
+   Gradient boosting handles class imbalance natively; tree splits capture interactions
+   that both LR and MLP may miss; well-calibrated probabilities out-of-the-box.
+2. **`ensemble_lgbm`** (new): soft vote `lgbm_svd` + `two_stage_top2`.
+   Analogous to `ensemble_mlp`, tests whether LGBM complements the linear two-stage model.
+3. **`mlp_svd_calibrated_sigmoid`** (new): `CalibratedClassifierCV(mlp_svd, cv=3, sigmoid)`.
+   Sigmoid needs only 2 params per class; data-efficient unlike isotonic (which failed Run 9).
+4. **`stacking_lgbm`** (new): `StackingClassifier([two_stage_top2, mlp_svd, lgbm_svd] → LR)`.
+   Meta-LR learns which base model's predictions to trust per region of the feature space.
+   18-dim meta-features (3 models × 6 class proba) → `LogisticRegression(C=0.1)`.
+5. **2 new stylometric features** (43→45 total):
+   - `starts_with_the`: 1.0 if text begins with "The " — Grok→DS confused texts pattern.
+   - `clause_per_sent`: commas per sentence — proxy for compound sentence complexity.
+6. **LightGBM installed**: `lightgbm==4.6.0`, `xgboost==3.2.0`.
+7. **`lgbm:` config section** added (n_svd_components=300, n_estimators=300, etc).
+
+### How to run
+```
+cd d:\hachaton\text-authorship-detection
+.env\Scripts\activate
+python main_train.py --config configs/config.yaml
+python main_infer.py --config configs/config.yaml
+```
+Submit `artifacts/submissions/submission_latest.csv` for best model.
+Per-model: submit each `artifacts/experiments/<run>/*/submission_*.csv` to compare.

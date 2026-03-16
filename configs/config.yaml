@@ -1,26 +1,21 @@
 # ============================================================
-# MALTO Text Authorship Detection — Configuration  (Run 7)
+# MALTO Text Authorship Detection — Configuration  (Run 10)
 # ============================================================
-# Run 6 results: CV 0.9328, two_stage_top2 winner. DS recall 0.61->0.70 (+0.09).
-#   BUT: DS->Grok=21 (-6), Grok->DS=14 (+6). Net 35 total errors — same as before.
-#   Only 5/600 test labels changed from Run 5 — too small for LB jump.
+# Run 9 results (CV OOF): ensemble_mlp=0.9360, mlp_svd=0.9354, two_stage_top2=0.9339
+#   mlp_svd_calibrated FAILED (isotonic needs 500+ samples/class, DS=80) → CV=0.9193
+#   mlp_svd_ds_boost FAILED (DS recall 62/80 but Grok->DS exploded to 28) → CV=0.9155
+#   DS->Grok=22, Grok->DS=12 for best model — total ~34 confusion unchanged
+#   Error analysis: both sets identical length (~191 chars, ~27 words) — semantic deadlock
 #
-# Run 7 (target: net reduce DS+Grok total errors below 30):
-#   - two_stage_top2_conservative: top2 trigger + natural binary weights (1:2 DS:Grok, C=0.8)
-#     Goal: keep DS recall gain, recover the 6 extra Grok->DS errors
-#   - two_stage_combined: GPT suggestion — top2 AND margin<0.30 (AND logic, most selective)
-#     Goal: fire only when truly ambiguous, near-zero false positive risk
-#   - ensemble_v2: soft vote of [two_stage_top2 + ensemble_soft]
-#     Goal: complement DS recall (0.70) with Grok recall (0.93) from each model
-#
-# Run 7 results: two_stage_top2 still winner (CV=0.9328). Conservative binary FAILED
-#   (DS recall 0.46 — natural weights too Grok-biased). Combined trigger traded DS->Grok=20
-#   for Grok->DS=19 — net 35 total DS/Grok errors same. Linear ceiling confirmed.
-#
-# Run 8 — Neural Network (target: break linear ceiling ~0.9328):
-#   - mlp_svd: TruncatedSVD(500) + MLPClassifier(512,256,ReLU) with balanced sample weights
-#     Non-linear boundaries can learn feature interactions LR fundamentally cannot
-#   - ensemble_mlp: soft vote of mlp_svd + two_stage_top2 (orthogonal representations)
+# Run 10 (target: break DS/Grok deadlock with gradient boosting + stacking):
+#   - lgbm_svd: TruncatedSVD(300) + LightGBM — gradient boosting, different inductive bias
+#     than MLP, native class-weight, better calibrated tree probas
+#   - ensemble_lgbm: soft vote lgbm_svd + two_stage_top2 (analogous to ensemble_mlp)
+#   - mlp_svd_calibrated_sigmoid: sigmoid Platt scaling instead of isotonic (fix Run 9 failure)
+#     sigmoid needs only 2 params per class vs isotonic's monotone function
+#   - stacking_lgbm: StackingClassifier [two_stage_top2 + mlp_svd + lgbm_svd] -> LR meta
+#     meta-learner learns WHEN each base model is right, not just avg their proba
+#   - 2 new stylometric features (45 total): starts_with_the, clause_per_sent
 # ============================================================
 
 # -----------------------------------------------------------
@@ -107,14 +102,16 @@ learning_curve:
 # -----------------------------------------------------------
 models:
   run_models:
-    - "two_stage_top2"                 # linear best: CV=0.9328, DS recall=0.70
-    - "mlp_svd"                        # NEW NN: SVD(500)+MLP(512,256), non-linear boundaries
-    - "ensemble_mlp"                   # NEW: soft vote mlp_svd + two_stage_top2
-    - "ensemble_soft"                  # linear baseline: CV=0.9272
+    - "two_stage_top2"                 # linear best: CV=0.9328 (reference)
+    - "ensemble_mlp"                   # MLP+linear: CV OOF=0.9360 (Run 9 best)
+    - "lgbm_svd"                       # NEW: gradient boosting in SVD space
+    - "ensemble_lgbm"                  # NEW: lgbm + two_stage soft vote
+    - "mlp_svd_calibrated_sigmoid"     # NEW: MLP + sigmoid calibration (isotonic FAILED)
+    - "stacking_lgbm"                  # NEW: meta-learner on [two_stage+mlp+lgbm] OOF
 
   # NOTE: when run_cv=true, the CV winner OVERRIDES this setting.
   # This value is only used when run_cv=false (direct final training).
-  best_model: "ensemble_soft"
+  best_model: "ensemble_mlp"
 
   # DeepSeek weight multiplier on top of 'balanced' for lr_deepseek_boost
   deepseek_boost: 2.0
@@ -122,6 +119,29 @@ models:
   # Two-stage trigger and threshold settings (shared across all two_stage_* models)
   two_stage_margin_gap: 0.40      # only invoke binary when |P(DS)-P(Grok)| < gap
   two_stage_ds_threshold: 0.52    # binary needs P(DS) >= this to predict DeepSeek
+
+  # ── LightGBM hyperparameters (used by lgbm_svd, ensemble_lgbm, stacking_lgbm)
+  lgbm:
+    n_svd_components: 300         # TruncatedSVD output dims (sparse → dense)
+    n_estimators: 300             # number of boosting rounds
+    num_leaves: 31                # tree complexity (31 = moderate, avoids overfit)
+    learning_rate: 0.05           # shrinkage — slower but more generalizable
+    min_child_samples: 10         # min samples per leaf — regularisation for small DS class
+    subsample: 0.8                # row subsampling per tree
+    colsample_bytree: 0.8         # feature subsampling per tree
+    reg_alpha: 0.1                # L1 regularisation
+    reg_lambda: 0.1               # L2 regularisation
+
+  # ── MLP neural network hyperparameters (used by mlp_svd, mlp_svd_ds_boost, ensemble_mlp)
+  mlp:
+    n_svd_components: 500       # TruncatedSVD output dims (sparse → dense)
+    hidden_layer_sizes: [512, 256]  # MLP hidden layer sizes
+    alpha: 0.01                 # L2 regularization (default 0.0001 too weak for 2400 samples)
+    max_iter: 300               # max training iterations
+    early_stopping: true        # stop early if val loss stagnates for 15 epochs
+    validation_fraction: 0.1    # fraction of training data held for early stopping
+    deepseek_boost_factor: 1.0  # DS sample weight multiplier on top of balanced (1.0 = off)
+    verbose: false              # set true to see MLP loss per iteration
 
   # ── Model hyperparameters ────────────────────────────────────────────────
   logistic_regression:
@@ -180,6 +200,7 @@ training:
   verbose: true
   random_state: 42
   use_best_fold_model: false  # false = retrain on ALL 2400 samples (safer for LB)
+  save_per_model_submissions: true  # generate per-model submission CSVs in exp folder
 
 # -----------------------------------------------------------
 # Error Analysis

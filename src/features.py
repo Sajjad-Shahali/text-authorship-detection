@@ -186,11 +186,20 @@ class StyleometricTransformer(BaseEstimator, TransformerMixin):
         import math
         text_len_log = math.log10(max(ch, 1))
 
+        # ---- New Run 10: DS/Grok error-analysis driven features ---------------
+        # starts_with_the: Grok→DS confused texts disproportionately start "The [topic]"
+        #   (encyclopedic Grok pattern: "The ancient Silk Road...", "The library of...")
+        starts_with_the = 1.0 if text.startswith("The ") else 0.0
+
+        # clause_per_sent: commas per sentence — DS uses more compound structures
+        clause_per_sent = text.count(',') / ns
+
         return [ch, nw, ns, np_, awl, nw/ns, nw/np_, ttr, lwr,
                 vss, vls, apc, cm, per, ex, qu, co, se, qt, pa, el, da,
                 ucr, dr, cwr, nlr, br, nr, hr, cr, bor, ir, lkr, isr,
                 punct_variety, sent_cv, trans_rate, fsw, proper_noun_dens,
-                hedge_rate, qps, sent_range, text_len_log]
+                hedge_rate, qps, sent_range, text_len_log,
+                starts_with_the, clause_per_sent]
 
 
 class IdentityTransformer(BaseEstimator, TransformerMixin):
@@ -237,6 +246,7 @@ class StyleometricPipeline(BaseEstimator, TransformerMixin):
         "ir", "lkr", "isr", "punct_variety", "sent_cv", "trans_rate",
         "first_sent_words", "proper_noun_density", "hedge_rate",
         "question_per_sent", "sent_range", "text_len_log",
+        "starts_with_the", "clause_per_sent",
     ]
 
     def __init__(self):

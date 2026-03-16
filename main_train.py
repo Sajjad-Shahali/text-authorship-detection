@@ -39,6 +39,49 @@ from src.utils import (
 )
 
 
+def _generate_per_model_submissions(config, paths, exp_dir, logger) -> None:
+    """
+    Run inference on the test set using each model's best CV fold pipeline
+    and save a submission CSV inside each model's experiment subfolder.
+
+    Uses the best CV fold model (trained on 80 % of data, best-generalising fold)
+    rather than the global final model.  No thresholds are applied — raw predictions
+    allow apples-to-apples comparison across models on Kaggle.
+    """
+    from datetime import datetime
+    from src.data import get_test_texts, load_test
+    from src.inference import predict
+    from src.submission import make_submission
+
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    run_models = config.get("models", {}).get("run_models", [])
+
+    # Load test data once
+    try:
+        test_df = load_test(paths["test_file"])
+        X_test = list(get_test_texts(test_df))
+        logger.info(f"  Test samples: {len(X_test)}")
+    except Exception as e:
+        logger.warning(f"  Cannot load test data for per-model submissions: {e}")
+        return
+
+    for model_name in run_models:
+        model_dir = exp_dir / model_name
+        fold_path = model_dir / "best_fold_model.joblib"
+        if not fold_path.exists():
+            logger.warning(f"  {model_name}: best_fold_model.joblib not found — skipped")
+            continue
+        try:
+            pipe = joblib.load(fold_path)
+            preds = predict(pipe, X_test)
+            sub_df = make_submission(preds)
+            out = model_dir / f"submission_{ts}.csv"
+            sub_df.to_csv(out, index=False)
+            logger.info(f"  {model_name}: submission saved → {out.name}")
+        except Exception as e:
+            logger.warning(f"  {model_name}: submission failed — {e}")
+
+
 def parse_args():
     parser = argparse.ArgumentParser(
         description="MALTO Text Authorship Detection — Training Pipeline"
@@ -118,6 +161,8 @@ def main():
 
         if exp_dir:
             comparison_df.to_csv(exp_dir / MODEL_COMPARISON_FILE, index=False)
+            logger.info(f"\nModel comparison saved to: {exp_dir / MODEL_COMPARISON_FILE}")
+        logger.info(f"Model comparison also saved to: {comp_path}")
 
         # ── CRITICAL: always use the CV winner as the final model ─────────────
         # This ensures the saved model matches the thresholds (which are computed
@@ -209,6 +254,13 @@ def main():
         logger.info(f"Final model also saved to: {exp_dir / BEST_MODEL_FILE}")
         # Write latest experiment dir path so main_infer.py can save submission there
         save_text(str(exp_dir), str(Path(paths["artifacts_dir"]) / "latest_exp_dir.txt"))
+
+    # ── Per-model submissions ──────────────────────────────────────────────────
+    # Generate a submission for EACH model using its best CV fold pipeline.
+    # Allows direct Kaggle comparison without re-running inference separately.
+    if exp_dir and training_cfg.get("save_per_model_submissions", True):
+        logger.info("\nGenerating per-model submissions from best fold models...")
+        _generate_per_model_submissions(config, paths, exp_dir, logger)
 
     # ── Summary ────────────────────────────────────────────────────────────────
     total_time = time.time() - run_start

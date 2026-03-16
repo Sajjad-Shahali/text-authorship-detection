@@ -100,7 +100,9 @@ def run_cross_validation(
     best_fold_pipeline = None
     best_fold_val_f1   = -1.0
 
-    logger.info(f"  Running {n_splits}-fold CV for model: {model_name}")
+    logger.info(f"\n{'='*65}")
+    logger.info(f"  MODEL: {model_name}")
+    logger.info(f"{'='*65}")
 
     for fold, (train_idx, val_idx) in enumerate(skf.split(X_arr, y)):
         fold_start = time.time()
@@ -140,14 +142,23 @@ def run_cross_validation(
                 pass
 
         fold_time = time.time() - fold_start
-        log_fold_metrics(fold, train_f1, val_f1, logger)
-        logger.info(f"    Fold time: {fold_time:.1f}s")
+        best_mark = " *** NEW BEST FOLD ***" if val_f1 == best_fold_val_f1 else ""
+        logger.info(
+            f"  Fold {fold+1}/{n_splits} | "
+            f"train={train_f1:.4f}  val={val_f1:.4f}  "
+            f"time={fold_time:.0f}s{best_mark}"
+        )
 
         fold_metrics.append({
             "fold": fold + 1,
             "train_macro_f1": round(float(train_f1), 4),
             "val_macro_f1":   round(float(val_f1), 4),
         })
+
+    # ── Fold summary ──────────────────────────────────────────────────────────
+    val_f1s = [m["val_macro_f1"] for m in fold_metrics]
+    logger.info(f"\n  {model_name} fold results: {[round(v,4) for v in val_f1s]}")
+    logger.info(f"  Best fold F1   : {best_fold_val_f1:.4f}")
 
     # Aggregate
     summary    = summarise_cv_results(fold_metrics)
@@ -156,10 +167,13 @@ def run_cross_validation(
     oof_metrics = compute_metrics(y, oof_preds)
 
     logger.info(
-        f"  {model_name} CV => "
-        f"mean_val_f1={summary['mean_val_macro_f1']:.4f} "
-        f"+/- {summary['std_val_macro_f1']:.4f}"
+        f"  {model_name} FINAL => "
+        f"mean={summary['mean_val_macro_f1']:.4f}  "
+        f"std={summary['std_val_macro_f1']:.4f}  "
+        f"oof={oof_metrics['macro_f1']:.4f}  "
+        f"overfit_gap={summary['mean_overfit_gap']:.4f}"
     )
+    logger.info(f"{'='*65}\n")
 
     results = {
         "model_name":                model_name,
@@ -294,6 +308,14 @@ def run_model_comparison(
         summary    = results["summary"]
         oof_metrics = results["oof_metrics"]
 
+        # ── Running leaderboard ───────────────────────────────────────────────
+        current_f1 = summary["mean_val_macro_f1"]
+        current_best = max((r["mean_val_macro_f1"] for r in rows), default=-1)
+        if current_f1 > current_best:
+            logger.info(f"  >>> NEW BEST: {model_name} = {current_f1:.4f}")
+        else:
+            logger.info(f"  (best so far: {current_best:.4f}, this: {current_f1:.4f})")
+
         rows.append({
             "model":                model_name,
             "mean_val_macro_f1":    summary["mean_val_macro_f1"],
@@ -316,14 +338,14 @@ def run_model_comparison(
         .reset_index(drop=True)
     )
 
-    logger.info("\nModel Comparison:")
-    logger.info("\n" + comparison_df.to_string(index=False))
-
     best_model_name = comparison_df.iloc[0]["model"]
-    logger.info(
-        f"\nBest model: {best_model_name}  "
-        f"(val_f1={comparison_df.iloc[0]['mean_val_macro_f1']:.4f})"
-    )
+    logger.info("\n" + "#"*65)
+    logger.info(f"  BEST MODEL : {best_model_name}")
+    logger.info(f"  CV F1      : {comparison_df.iloc[0]['mean_val_macro_f1']:.4f}")
+    logger.info(f"  OOF F1     : {comparison_df.iloc[0]['oof_macro_f1']:.4f}")
+    logger.info("#"*65 + "\n")
+    logger.info("Full comparison:")
+    logger.info("\n" + comparison_df.to_string(index=False))
 
     # ── Per-class threshold optimisation on OOF proba of best model ───────────
     best_oof_proba = all_results[best_model_name].get("oof_proba")
