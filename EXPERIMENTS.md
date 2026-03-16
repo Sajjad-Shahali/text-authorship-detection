@@ -328,3 +328,51 @@ python main_train.py --config configs/config.yaml
 python main_infer.py --config configs/config.yaml
 ```
 Then submit `artifacts/submissions/submission_latest.csv` to Kaggle.
+
+---
+
+## Run 7 — Net DS/Grok Error Reduction (5 models)
+**Date**: 2026-03-16
+**Kaggle public LB**: (pending)
+**Target**: Reduce total DS+Grok errors below 30 (currently 35)
+
+### Run 6 diagnosis
+Run 6 two_stage_top2 improved DS recall (0.61→0.70) but traded:
+- DS→Grok: 27 → 21 (-6 good)
+- Grok→DS: 8 → 14 (+6 bad)
+Net: 35 total errors, same as before. Only 5/600 test labels changed → no LB jump.
+Root cause: the balanced-weight binary (C=1.5) is too aggressive — it corrects true
+DS samples but also over-claims ambiguous Grok samples as DS.
+
+### Three targeted hypotheses (GPT + own analysis)
+1. **Conservative binary** (my suggestion): Keep top2 trigger but use natural 1:2
+   DS:Grok weights in the binary. Natural ratio biases toward Grok when uncertain,
+   which should recover the 6 extra Grok→DS errors without losing DS recall.
+
+2. **Combined trigger** (GPT suggestion): Fire only when BOTH top2 AND margin<0.30.
+   This is the most selective trigger possible — only fires on truly ambiguous cases
+   where the model has barely any preference between DS and Grok. Near-zero chance
+   of creating Grok→DS false positives.
+
+3. **Ensemble v2** (my suggestion): Soft average of two_stage_top2 + ensemble_soft.
+   The two models are complementary: top2 has better DS recall (0.70), soft has better
+   Grok recall (0.93) and overall precision. Averaging should get the best of both.
+
+### Changes from Run 6
+1. **`two_stage_top2_conservative`** (new): top2_trigger=True + binary C=0.8 +
+   class_weight=None (natural 1:2 DS:Grok) + ds_threshold=0.52
+2. **`two_stage_combined`** (new): top2_trigger=True AND margin_trigger_gap=0.30 +
+   binary C=1.5 + class_weight="balanced". AND logic: most selective trigger.
+3. **`ensemble_v2`** (new): VotingClassifier(soft) of [two_stage_top2 + ensemble_soft]
+4. **Bug fix**: `TwoStageClassifier.predict()` now correctly fetches base_proba when
+   top2_trigger=True (was only fetching for margin_trigger_gap previously)
+5. **Enhancement**: `_compute_trigger_mask` now uses AND logic when both top2_trigger
+   AND margin_trigger_gap are set — enables the two_stage_combined model
+
+### How to run
+```
+cd d:\hachaton\text-authorship-detection
+.env\Scripts\activate
+python main_train.py --config configs/config.yaml
+python main_infer.py --config configs/config.yaml
+```

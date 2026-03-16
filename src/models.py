@@ -137,27 +137,36 @@ class TwoStageClassifier(ClassifierMixin, BaseEstimator):
         return self
 
     def _compute_trigger_mask(self, X, preds, base_proba=None):
-        """Return boolean mask of samples to refine with stage-2."""
+        """Return boolean mask of samples to refine with stage-2.
+
+        When multiple trigger conditions are set (top2_trigger + margin_trigger_gap),
+        ALL conditions must be true (AND logic) — this makes the trigger maximally
+        selective and avoids over-correction.
+        """
         base_ambig = (preds == self.DEEPSEEK) | (preds == self.GROK)
         if base_proba is None:
             return base_ambig
 
+        conditions = [base_ambig]
+
         if self.top2_trigger:
             # Only refine when DS and Grok are BOTH in the top-2 predicted classes.
-            # This is more precise than the margin trigger because it catches the case
-            # where DS is predicted but Grok is NOT the runner-up (e.g. Claude is 2nd).
             sorted_idx = np.argsort(base_proba, axis=1)[:, -2:]  # top-2 class indices
             top2_are_ds_grok = np.all(
                 np.isin(sorted_idx, [self.DEEPSEEK, self.GROK]), axis=1
             )
-            return base_ambig & top2_are_ds_grok
+            conditions.append(top2_are_ds_grok)
 
         if self.margin_trigger_gap is not None:
-            # Margin-based: only refine when |P(DS) - P(Grok)| is small (base uncertain)
+            # Only refine when |P(DS) - P(Grok)| < gap (base model is genuinely uncertain)
             margin = np.abs(base_proba[:, self.DEEPSEEK] - base_proba[:, self.GROK])
-            return base_ambig & (margin < self.margin_trigger_gap)
+            conditions.append(margin < self.margin_trigger_gap)
 
-        return base_ambig
+        # All conditions must hold — AND them together
+        result = conditions[0]
+        for cond in conditions[1:]:
+            result = result & cond
+        return result
 
     def _apply_binary(self, X_ambig, bin_proba=None):
         """Run binary stage and return class predictions respecting ds_threshold."""
@@ -177,9 +186,8 @@ class TwoStageClassifier(ClassifierMixin, BaseEstimator):
 
     def predict(self, X):
         base_proba = None
-        if hasattr(self.base_clf_, "predict_proba") and (
-            self.margin_trigger_gap is not None or self.top2_trigger
-        ):
+        need_proba = self.margin_trigger_gap is not None or self.top2_trigger
+        if hasattr(self.base_clf_, "predict_proba") and need_proba:
             base_proba = self.base_clf_.predict_proba(X)
             preds = np.argmax(base_proba, axis=1).copy()
         else:
@@ -286,6 +294,9 @@ AVAILABLE_MODELS = [
     "two_stage_lr",            # Two-stage: 6-class base + binary DeepSeek/Grok sub-classifier
     "two_stage_conservative",  # Two-stage with margin trigger + conservative DS threshold
     "two_stage_top2",          # Two-stage: top-2 trigger (DS+Grok must be top-2)
+    "two_stage_top2_conservative",  # top2 trigger + natural binary weights (less Grok->DS)
+    "two_stage_combined",      # top2 AND margin<0.30 (AND logic, most selective trigger)
+    "ensemble_v2",             # Soft vote: two_stage_top2 + ensemble_soft
     "ensemble_two_stage",      # Soft vote: ensemble_soft + two_stage_conservative + lr_deepseek_boost
 ]
 
@@ -661,6 +672,125 @@ def get_model(name: str, config: Dict) -> BaseEstimator:
             binary_classifier=binary_lr,
             top2_trigger=True,
             binary_ds_threshold=model_cfg.get("two_stage_ds_threshold", 0.50),
+        )
+
+    # ── Two-stage top2 conservative (natural binary weights, C=0.8) ───────────
+    if name == "two_stage_top2_conservative":
+        # Same top2 trigger as two_stage_top2 but with natural 1:2 DS:Grok weights
+        # in the binary stage. Goal: keep DS recall gains while reducing the 14
+        # new Grok->DS errors introduced by the balanced-weight binary.
+        cfg = model_cfg.get("logistic_regression_balanced", {})
+        base_lr = LogisticRegression(
+            C=cfg.get("C", 0.5),
+            max_iter=cfg.get("max_iter", 1000),
+            solver=cfg.get("solver", "lbfgs"),
+            class_weight="balanced",
+            random_state=seed,
+        )
+        binary_lr = LogisticRegression(
+            C=0.8,
+            max_iter=cfg.get("max_iter", 1000),
+            solver=cfg.get("solver", "lbfgs"),
+            class_weight=None,  # natural 1:2 DS:Grok ratio — Grok-biased when uncertain
+            random_state=seed,
+        )
+        return TwoStageClassifier(
+            base_classifier=base_lr,
+            binary_classifier=binary_lr,
+            top2_trigger=True,
+            binary_ds_threshold=0.52,  # slightly conservative DS threshold
+        )
+
+    # ── Two-stage combined trigger (top2 AND margin) — GPT suggestion ─────────
+    if name == "two_stage_combined":
+        # GPT recommendation: fire ONLY when top-2 are DS+Grok AND the model is
+        # genuinely uncertain (margin < 0.30). The AND logic is the most selective
+        # trigger possible — almost zero risk of Grok false positives.
+        cfg = model_cfg.get("logistic_regression_balanced", {})
+        base_lr = LogisticRegression(
+            C=cfg.get("C", 0.5),
+            max_iter=cfg.get("max_iter", 1000),
+            solver=cfg.get("solver", "lbfgs"),
+            class_weight="balanced",
+            random_state=seed,
+        )
+        binary_lr = LogisticRegression(
+            C=1.5,
+            max_iter=cfg.get("max_iter", 1000),
+            solver=cfg.get("solver", "lbfgs"),
+            class_weight="balanced",
+            random_state=seed,
+        )
+        return TwoStageClassifier(
+            base_classifier=base_lr,
+            binary_classifier=binary_lr,
+            top2_trigger=True,
+            margin_trigger_gap=0.30,   # AND: only when |P(DS)-P(Grok)| < 0.30
+            binary_ds_threshold=0.50,
+        )
+
+    # ── Ensemble v2: soft vote of two_stage_top2 + ensemble_soft ─────────────
+    if name == "ensemble_v2":
+        # Combines the complementary strengths of both approaches:
+        #   two_stage_top2: better DS recall (0.70 vs 0.61)
+        #   ensemble_soft:  better Grok recall (0.93 vs 0.91) + precision
+        # Soft averaging should improve both classes simultaneously.
+        cfg_lr  = model_cfg.get("logistic_regression_balanced", {})
+        cfg_sgd = model_cfg.get("sgd_hinge", {})
+        cfg_rg  = model_cfg.get("ridge_classifier", {})
+        cfg_svc = model_cfg.get("calibrated_svc", {})
+
+        # Rebuild ensemble_soft inline
+        cal_sgd = CalibratedClassifierCV(
+            SGDClassifier(
+                loss="hinge", alpha=cfg_sgd.get("alpha", 1e-4),
+                max_iter=cfg_sgd.get("max_iter", 100),
+                class_weight="balanced", random_state=seed, n_jobs=-1,
+            ),
+            cv=3, method="isotonic",
+        )
+        cal_ridge = CalibratedClassifierCV(
+            RidgeClassifier(alpha=cfg_rg.get("alpha", 1.0), class_weight="balanced"),
+            cv=3, method="isotonic",
+        )
+        lr_soft = LogisticRegression(
+            C=cfg_lr.get("C", 0.5), max_iter=cfg_lr.get("max_iter", 1000),
+            solver=cfg_lr.get("solver", "lbfgs"), class_weight="balanced",
+            random_state=seed,
+        )
+        cal_svc = CalibratedClassifierCV(
+            LinearSVC(C=cfg_svc.get("C", 0.1), max_iter=cfg_svc.get("max_iter", 2000),
+                      class_weight="balanced", random_state=seed),
+            cv=3, method="isotonic",
+        )
+        soft_ens = VotingClassifier(
+            [("cal_sgd", cal_sgd), ("cal_ridge", cal_ridge),
+             ("lr", lr_soft), ("cal_svc", cal_svc)],
+            voting="soft", n_jobs=1,
+        )
+
+        # Rebuild two_stage_top2 inline
+        base_lr = LogisticRegression(
+            C=cfg_lr.get("C", 0.5), max_iter=cfg_lr.get("max_iter", 1000),
+            solver=cfg_lr.get("solver", "lbfgs"), class_weight="balanced",
+            random_state=seed,
+        )
+        binary_lr = LogisticRegression(
+            C=1.5, max_iter=cfg_lr.get("max_iter", 1000),
+            solver=cfg_lr.get("solver", "lbfgs"), class_weight="balanced",
+            random_state=seed,
+        )
+        top2_stage = TwoStageClassifier(
+            base_classifier=base_lr,
+            binary_classifier=binary_lr,
+            top2_trigger=True,
+            binary_ds_threshold=0.50,
+        )
+
+        return VotingClassifier(
+            [("top2_stage", top2_stage), ("soft_ens", soft_ens)],
+            voting="soft",
+            n_jobs=1,
         )
 
     raise ValueError(f"Unknown model '{name}'. Available: {AVAILABLE_MODELS}")

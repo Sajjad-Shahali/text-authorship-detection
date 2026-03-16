@@ -1,18 +1,17 @@
 # ============================================================
-# MALTO Text Authorship Detection — Configuration  (Run 6)
+# MALTO Text Authorship Detection — Configuration  (Run 7)
 # ============================================================
-# Run 5 results: LB 0.91089 (same as Run 4) — ensemble_two_stage & two_stage_conservative
-#   did not improve over ensemble_soft. DS->Grok=27 still the main problem.
+# Run 6 results: CV 0.9328, two_stage_top2 winner. DS recall 0.61->0.70 (+0.09).
+#   BUT: DS->Grok=21 (-6), Grok->DS=14 (+6). Net 35 total errors — same as before.
+#   Only 5/600 test labels changed from Run 5 — too small for LB jump.
 #
-# Run 6 changes (target: >0.93 LB — fix DeepSeek recall):
-#   - 43 stylometric features (up from 37): first_sent_words, proper_noun_density,
-#     hedge_rate, question_per_sent, sent_range, text_len_log
-#   - two_stage_top2: fires ONLY when DS and Grok are BOTH top-2 predicted classes
-#     (more precise than margin trigger — avoids false triggers when Grok is clear)
-#   - DS/Grok pair-specific threshold: optimized ratio P(DS)/(P(DS)+P(Grok))
-#     applied as post-processor after global thresholds — only affects DS/Grok boundary
-#   - Bug fix: stale thresholds warning in main_infer.py
-#   - Bug fix: single-model CV now saves thresholds
+# Run 7 (target: net reduce DS+Grok total errors below 30):
+#   - two_stage_top2_conservative: top2 trigger + natural binary weights (1:2 DS:Grok, C=0.8)
+#     Goal: keep DS recall gain, recover the 6 extra Grok->DS errors
+#   - two_stage_combined: GPT suggestion — top2 AND margin<0.30 (AND logic, most selective)
+#     Goal: fire only when truly ambiguous, near-zero false positive risk
+#   - ensemble_v2: soft vote of [two_stage_top2 + ensemble_soft]
+#     Goal: complement DS recall (0.70) with Grok recall (0.93) from each model
 # ============================================================
 
 # -----------------------------------------------------------
@@ -99,10 +98,11 @@ learning_curve:
 # -----------------------------------------------------------
 models:
   run_models:
-    - "ensemble_soft"                  # Run 4/5 winner: LB=0.91089, CV=0.9321
-    - "two_stage_top2"                 # NEW Run 6: top-2 trigger (DS+Grok must be top-2)
-    - "logistic_regression_balanced"   # Fast baseline for comparison
-    - "lr_deepseek_boost"              # DS class weight 2x beyond balanced
+    - "ensemble_soft"                  # baseline: LB=0.91089, CV=0.9272
+    - "two_stage_top2"                 # Run 6 winner: CV=0.9328, DS recall=0.70
+    - "two_stage_top2_conservative"    # NEW: top2 + natural binary weights (less Grok->DS)
+    - "two_stage_combined"             # NEW GPT: top2 AND margin<0.30 (AND logic)
+    - "ensemble_v2"                    # NEW: soft vote top2 + ensemble_soft
 
   # NOTE: when run_cv=true, the CV winner OVERRIDES this setting.
   # This value is only used when run_cv=false (direct final training).

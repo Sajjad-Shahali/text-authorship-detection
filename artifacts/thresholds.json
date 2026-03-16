@@ -1,0 +1,12 @@
+{
+  "model": "two_stage_top2",
+  "thresholds": [
+    1.25,
+    1.0,
+    1.0,
+    1.75,
+    1.0,
+    1.5
+  ],
+  "ds_grok_pair_threshold": 0.525
+}
