@@ -1,0 +1,313 @@
+(.env) PS D:\hachaton\text-authorship-detection> python main_train.py --config configs/config.yaml
+>>
+2026-03-16 04:03:32 [INFO] main_train — ============================================================
+2026-03-16 04:03:32 [INFO] main_train — SYSTEM INFO
+2026-03-16 04:03:32 [INFO] main_train —   Python      : 3.12.10
+2026-03-16 04:03:32 [INFO] main_train —   Platform    : Windows-11-10.0.26200-SP0
+2026-03-16 04:03:32 [INFO] main_train —   NumPy       : 2.4.3
+2026-03-16 04:03:32 [INFO] main_train —   Pandas      : 3.0.1
+2026-03-16 04:03:32 [INFO] main_train —   scikit-learn: 1.8.0
+2026-03-16 04:03:32 [INFO] main_train — ============================================================
+2026-03-16 04:03:32 [INFO] main_train — Config loaded from : configs/config.yaml
+2026-03-16 04:03:32 [INFO] main_train — Experiment dir     : artifacts\experiments\2026-03-16_040332_run
+2026-03-16 04:03:32 [INFO] main_train — Loading training data...
+2026-03-16 04:03:32 [INFO] src.data — Loading train data from: data\train.csv
+2026-03-16 04:03:32 [INFO] src.data —   Raw shape: (2400, 2)
+2026-03-16 04:03:32 [INFO] src.data —   Cleaned shape: (2400, 2)
+2026-03-16 04:03:32 [INFO] src.data —   Class distribution:
+LABEL
+0    1520
+1      80
+2     160
+3      80
+4     240
+5     320
+2026-03-16 04:03:32 [INFO] main_train — Dataset: 2400 samples, 6 classes
+2026-03-16 04:03:32 [INFO] main_train —
+Starting model comparison (CV + learning curves)...
+2026-03-16 04:03:32 [INFO] src.train — ============================================================
+2026-03-16 04:03:32 [INFO] src.train — MODEL COMPARISON
+2026-03-16 04:03:32 [INFO] src.train — ============================================================
+2026-03-16 04:03:32 [INFO] src.train —
+[Model: logistic_regression]
+2026-03-16 04:03:32 [INFO] src.train —   Running 5-fold CV for model: logistic_regression
+2026-03-16 04:03:32 [INFO] src.features —   Stylometric features: ENABLED (20 features)
+2026-03-16 04:03:50 [INFO] src.train —   Fold 1: train_f1=0.9962  val_f1=0.8158  gap=+0.1804 [!] HIGH OVERFIT GAP
+2026-03-16 04:03:50 [INFO] src.train —     Fold time: 18.6s
+2026-03-16 04:03:50 [INFO] src.features —   Stylometric features: ENABLED (20 features)
+2026-03-16 04:04:09 [INFO] src.train —   Fold 2: train_f1=0.9966  val_f1=0.8011  gap=+0.1956 [!] HIGH OVERFIT GAP
+2026-03-16 04:04:09 [INFO] src.train —     Fold time: 18.7s
+2026-03-16 04:04:09 [INFO] src.features —   Stylometric features: ENABLED (20 features)
+2026-03-16 04:04:28 [INFO] src.train —   Fold 3: train_f1=0.9962  val_f1=0.8242  gap=+0.1721 [!] HIGH OVERFIT GAP
+2026-03-16 04:04:28 [INFO] src.train —     Fold time: 18.6s
+2026-03-16 04:04:28 [INFO] src.features —   Stylometric features: ENABLED (20 features)
+2026-03-16 04:04:46 [INFO] src.train —   Fold 4: train_f1=0.9962  val_f1=0.8009  gap=+0.1953 [!] HIGH OVERFIT GAP
+2026-03-16 04:04:46 [INFO] src.train —     Fold time: 18.5s
+2026-03-16 04:04:46 [INFO] src.features —   Stylometric features: ENABLED (20 features)
+2026-03-16 04:05:06 [INFO] src.train —   Fold 5: train_f1=0.9996  val_f1=0.8588  gap=+0.1408 [!] HIGH OVERFIT GAP
+2026-03-16 04:05:06 [INFO] src.train —     Fold time: 19.4s
+2026-03-16 04:05:06 [INFO] src.train —   logistic_regression CV => mean_val_f1=0.8202 +/- 0.0213
+2026-03-16 04:05:06 [INFO] src.train —   Saved CV artifacts to: artifacts\experiments\2026-03-16_040332_run\logistic_regression
+2026-03-16 04:05:06 [INFO] src.plots —   Saved overfitting plot: artifacts\experiments\2026-03-16_040332_run\plots\overfitting_logistic_regression.png
+2026-03-16 04:05:06 [INFO] src.plots —   Saved confusion matrix plot: artifacts\experiments\2026-03-16_040332_run\plots\confusion_matrix_logistic_regression.png
+2026-03-16 04:05:06 [INFO] src.train — 
+[Model: logistic_regression_balanced]
+2026-03-16 04:05:06 [INFO] src.train —   Running 5-fold CV for model: logistic_regression_balanced
+2026-03-16 04:05:06 [INFO] src.features —   Stylometric features: ENABLED (20 features)
+2026-03-16 04:05:27 [INFO] src.train —   Fold 1: train_f1=0.9996  val_f1=0.9150  gap=+0.0846
+2026-03-16 04:05:27 [INFO] src.train —     Fold time: 20.1s
+2026-03-16 04:05:27 [INFO] src.features —   Stylometric features: ENABLED (20 features)
+2026-03-16 04:05:48 [INFO] src.train —   Fold 2: train_f1=1.0000  val_f1=0.9022  gap=+0.0978
+2026-03-16 04:05:48 [INFO] src.train —     Fold time: 21.0s
+2026-03-16 04:05:48 [INFO] src.features —   Stylometric features: ENABLED (20 features)
+2026-03-16 04:06:08 [INFO] src.train —   Fold 3: train_f1=0.9996  val_f1=0.8955  gap=+0.1041 [!] HIGH OVERFIT GAP
+2026-03-16 04:06:08 [INFO] src.train —     Fold time: 20.2s
+2026-03-16 04:06:08 [INFO] src.features —   Stylometric features: ENABLED (20 features)
+2026-03-16 04:06:27 [INFO] src.train —   Fold 4: train_f1=0.9996  val_f1=0.9210  gap=+0.0786
+2026-03-16 04:06:27 [INFO] src.train —     Fold time: 19.3s
+2026-03-16 04:06:27 [INFO] src.features —   Stylometric features: ENABLED (20 features)
+2026-03-16 04:06:46 [INFO] src.train —   Fold 5: train_f1=0.9996  val_f1=0.8946  gap=+0.1050 [!] HIGH OVERFIT GAP
+2026-03-16 04:06:46 [INFO] src.train —     Fold time: 19.0s
+2026-03-16 04:06:46 [INFO] src.train —   logistic_regression_balanced CV => mean_val_f1=0.9057 +/- 0.0106
+2026-03-16 04:06:46 [INFO] src.train —   Saved CV artifacts to: artifacts\experiments\2026-03-16_040332_run\logistic_regression_balanced
+2026-03-16 04:06:46 [INFO] src.plots —   Saved overfitting plot: artifacts\experiments\2026-03-16_040332_run\plots\overfitting_logistic_regression_balanced.png
+2026-03-16 04:06:46 [INFO] src.plots —   Saved confusion matrix plot: artifacts\experiments\2026-03-16_040332_run\plots\confusion_matrix_logistic_regression_balanced.png
+2026-03-16 04:06:46 [INFO] src.train — 
+[Model: linear_svc]
+2026-03-16 04:06:46 [INFO] src.train —   Running 5-fold CV for model: linear_svc
+2026-03-16 04:06:46 [INFO] src.features —   Stylometric features: ENABLED (20 features)
+2026-03-16 04:06:59 [INFO] src.train —   Fold 1: train_f1=0.9881  val_f1=0.7910  gap=+0.1972 [!] HIGH OVERFIT GAP
+2026-03-16 04:06:59 [INFO] src.train —     Fold time: 12.9s
+2026-03-16 04:06:59 [INFO] src.features —   Stylometric features: ENABLED (20 features)
+2026-03-16 04:07:13 [INFO] src.train —   Fold 2: train_f1=0.9865  val_f1=0.8027  gap=+0.1837 [!] HIGH OVERFIT GAP
+2026-03-16 04:07:13 [INFO] src.train —     Fold time: 14.1s
+2026-03-16 04:07:13 [INFO] src.features —   Stylometric features: ENABLED (20 features)
+2026-03-16 04:07:26 [INFO] src.train —   Fold 3: train_f1=0.9902  val_f1=0.8047  gap=+0.1855 [!] HIGH OVERFIT GAP
+2026-03-16 04:07:26 [INFO] src.train —     Fold time: 12.3s
+2026-03-16 04:07:26 [INFO] src.features —   Stylometric features: ENABLED (20 features)
+2026-03-16 04:07:38 [INFO] src.train —   Fold 4: train_f1=0.9881  val_f1=0.8009  gap=+0.1872 [!] HIGH OVERFIT GAP
+2026-03-16 04:07:38 [INFO] src.train —     Fold time: 12.4s
+2026-03-16 04:07:38 [INFO] src.features —   Stylometric features: ENABLED (20 features)
+2026-03-16 04:07:50 [INFO] src.train —   Fold 5: train_f1=0.9957  val_f1=0.8080  gap=+0.1876 [!] HIGH OVERFIT GAP
+2026-03-16 04:07:50 [INFO] src.train —     Fold time: 12.3s
+2026-03-16 04:07:50 [INFO] src.train —   linear_svc CV => mean_val_f1=0.8015 +/- 0.0057
+2026-03-16 04:07:50 [INFO] src.train —   Saved CV artifacts to: artifacts\experiments\2026-03-16_040332_run\linear_svc
+2026-03-16 04:07:50 [INFO] src.plots —   Saved overfitting plot: artifacts\experiments\2026-03-16_040332_run\plots\overfitting_linear_svc.png
+2026-03-16 04:07:50 [INFO] src.plots —   Saved confusion matrix plot: artifacts\experiments\2026-03-16_040332_run\plots\confusion_matrix_linear_svc.png
+2026-03-16 04:07:50 [INFO] src.train — 
+[Model: linear_svc_balanced]
+2026-03-16 04:07:50 [INFO] src.train —   Running 5-fold CV for model: linear_svc_balanced
+2026-03-16 04:07:50 [INFO] src.features —   Stylometric features: ENABLED (20 features)
+2026-03-16 04:08:03 [INFO] src.train —   Fold 1: train_f1=0.9996  val_f1=0.8536  gap=+0.1460 [!] HIGH OVERFIT GAP
+2026-03-16 04:08:03 [INFO] src.train —     Fold time: 12.6s
+2026-03-16 04:08:03 [INFO] src.features —   Stylometric features: ENABLED (20 features)
+2026-03-16 04:08:16 [INFO] src.train —   Fold 2: train_f1=1.0000  val_f1=0.8419  gap=+0.1581 [!] HIGH OVERFIT GAP
+2026-03-16 04:08:16 [INFO] src.train —     Fold time: 12.8s
+2026-03-16 04:08:16 [INFO] src.features —   Stylometric features: ENABLED (20 features)
+2026-03-16 04:08:28 [INFO] src.train —   Fold 3: train_f1=0.9996  val_f1=0.8737  gap=+0.1259 [!] HIGH OVERFIT GAP
+2026-03-16 04:08:28 [INFO] src.train —     Fold time: 12.6s
+2026-03-16 04:08:28 [INFO] src.features —   Stylometric features: ENABLED (20 features)
+2026-03-16 04:08:41 [INFO] src.train —   Fold 4: train_f1=0.9996  val_f1=0.8885  gap=+0.1111 [!] HIGH OVERFIT GAP
+2026-03-16 04:08:41 [INFO] src.train —     Fold time: 12.3s
+2026-03-16 04:08:41 [INFO] src.features —   Stylometric features: ENABLED (20 features)
+2026-03-16 04:08:53 [INFO] src.train —   Fold 5: train_f1=0.9996  val_f1=0.8893  gap=+0.1103 [!] HIGH OVERFIT GAP
+2026-03-16 04:08:53 [INFO] src.train —     Fold time: 12.4s
+2026-03-16 04:08:53 [INFO] src.train —   linear_svc_balanced CV => mean_val_f1=0.8694 +/- 0.0189
+2026-03-16 04:08:53 [INFO] src.train —   Saved CV artifacts to: artifacts\experiments\2026-03-16_040332_run\linear_svc_balanced
+2026-03-16 04:08:53 [INFO] src.plots —   Saved overfitting plot: artifacts\experiments\2026-03-16_040332_run\plots\overfitting_linear_svc_balanced.png
+2026-03-16 04:08:53 [INFO] src.plots —   Saved confusion matrix plot: artifacts\experiments\2026-03-16_040332_run\plots\confusion_matrix_linear_svc_balanced.png
+2026-03-16 04:08:53 [INFO] src.train — 
+[Model: calibrated_svc]
+2026-03-16 04:08:53 [INFO] src.train —   Running 5-fold CV for model: calibrated_svc
+2026-03-16 04:08:53 [INFO] src.features —   Stylometric features: ENABLED (20 features)
+2026-03-16 04:09:08 [INFO] src.train —   Fold 1: train_f1=0.9976  val_f1=0.8252  gap=+0.1724 [!] HIGH OVERFIT GAP
+2026-03-16 04:09:08 [INFO] src.train —     Fold time: 14.8s
+2026-03-16 04:09:08 [INFO] src.features —   Stylometric features: ENABLED (20 features)
+2026-03-16 04:09:23 [INFO] src.train —   Fold 2: train_f1=0.9980  val_f1=0.8389  gap=+0.1592 [!] HIGH OVERFIT GAP
+2026-03-16 04:09:23 [INFO] src.train —     Fold time: 14.9s
+2026-03-16 04:09:23 [INFO] src.features —   Stylometric features: ENABLED (20 features)
+2026-03-16 04:09:38 [INFO] src.train —   Fold 3: train_f1=0.9976  val_f1=0.8753  gap=+0.1224 [!] HIGH OVERFIT GAP
+2026-03-16 04:09:38 [INFO] src.train —     Fold time: 14.8s
+2026-03-16 04:09:38 [INFO] src.features —   Stylometric features: ENABLED (20 features)
+2026-03-16 04:09:52 [INFO] src.train —   Fold 4: train_f1=0.9976  val_f1=0.8423  gap=+0.1554 [!] HIGH OVERFIT GAP
+2026-03-16 04:09:52 [INFO] src.train —     Fold time: 14.6s
+2026-03-16 04:09:52 [INFO] src.features —   Stylometric features: ENABLED (20 features)
+2026-03-16 04:10:07 [INFO] src.train —   Fold 5: train_f1=0.9996  val_f1=0.8787  gap=+0.1209 [!] HIGH OVERFIT GAP
+2026-03-16 04:10:07 [INFO] src.train —     Fold time: 14.5s
+2026-03-16 04:10:07 [INFO] src.train —   calibrated_svc CV => mean_val_f1=0.8521 +/- 0.0212
+2026-03-16 04:10:07 [INFO] src.train —   Saved CV artifacts to: artifacts\experiments\2026-03-16_040332_run\calibrated_svc
+2026-03-16 04:10:07 [INFO] src.plots —   Saved overfitting plot: artifacts\experiments\2026-03-16_040332_run\plots\overfitting_calibrated_svc.png
+2026-03-16 04:10:07 [INFO] src.plots —   Saved confusion matrix plot: artifacts\experiments\2026-03-16_040332_run\plots\confusion_matrix_calibrated_svc.png
+2026-03-16 04:10:07 [INFO] src.train — 
+[Model: sgd_log]
+2026-03-16 04:10:07 [INFO] src.train —   Running 5-fold CV for model: sgd_log
+2026-03-16 04:10:07 [INFO] src.features —   Stylometric features: ENABLED (20 features)
+2026-03-16 04:10:20 [INFO] src.train —   Fold 1: train_f1=1.0000  val_f1=0.8977  gap=+0.1023 [!] HIGH OVERFIT GAP
+2026-03-16 04:10:20 [INFO] src.train —     Fold time: 13.0s
+2026-03-16 04:10:20 [INFO] src.features —   Stylometric features: ENABLED (20 features)
+2026-03-16 04:10:33 [INFO] src.train —   Fold 2: train_f1=1.0000  val_f1=0.8419  gap=+0.1581 [!] HIGH OVERFIT GAP
+2026-03-16 04:10:33 [INFO] src.train —     Fold time: 12.8s
+2026-03-16 04:10:33 [INFO] src.features —   Stylometric features: ENABLED (20 features)
+2026-03-16 04:10:45 [INFO] src.train —   Fold 3: train_f1=1.0000  val_f1=0.9121  gap=+0.0879
+2026-03-16 04:10:45 [INFO] src.train —     Fold time: 12.6s
+2026-03-16 04:10:45 [INFO] src.features —   Stylometric features: ENABLED (20 features)
+2026-03-16 04:10:58 [INFO] src.train —   Fold 4: train_f1=1.0000  val_f1=0.8755  gap=+0.1245 [!] HIGH OVERFIT GAP
+2026-03-16 04:10:58 [INFO] src.train —     Fold time: 12.4s
+2026-03-16 04:10:58 [INFO] src.features —   Stylometric features: ENABLED (20 features)
+2026-03-16 04:11:10 [INFO] src.train —   Fold 5: train_f1=1.0000  val_f1=0.8913  gap=+0.1087 [!] HIGH OVERFIT GAP
+2026-03-16 04:11:10 [INFO] src.train —     Fold time: 12.5s
+2026-03-16 04:11:10 [INFO] src.train —   sgd_log CV => mean_val_f1=0.8837 +/- 0.0240
+2026-03-16 04:11:10 [INFO] src.train —   Saved CV artifacts to: artifacts\experiments\2026-03-16_040332_run\sgd_log  
+2026-03-16 04:11:10 [INFO] src.plots —   Saved overfitting plot: artifacts\experiments\2026-03-16_040332_run\plots\overfitting_sgd_log.png
+2026-03-16 04:11:10 [INFO] src.plots —   Saved confusion matrix plot: artifacts\experiments\2026-03-16_040332_run\plots\confusion_matrix_sgd_log.png
+2026-03-16 04:11:10 [INFO] src.train — 
+[Model: sgd_hinge]
+2026-03-16 04:11:10 [INFO] src.train —   Running 5-fold CV for model: sgd_hinge
+2026-03-16 04:11:10 [INFO] src.features —   Stylometric features: ENABLED (20 features)
+2026-03-16 04:11:22 [INFO] src.train —   Fold 1: train_f1=1.0000  val_f1=0.8904  gap=+0.1096 [!] HIGH OVERFIT GAP
+2026-03-16 04:11:22 [INFO] src.train —     Fold time: 11.7s
+2026-03-16 04:11:22 [INFO] src.features —   Stylometric features: ENABLED (20 features)
+2026-03-16 04:11:34 [INFO] src.train —   Fold 2: train_f1=1.0000  val_f1=0.8538  gap=+0.1462 [!] HIGH OVERFIT GAP
+2026-03-16 04:11:34 [INFO] src.train —     Fold time: 11.5s
+2026-03-16 04:11:34 [INFO] src.features —   Stylometric features: ENABLED (20 features)
+2026-03-16 04:11:45 [INFO] src.train —   Fold 3: train_f1=0.9981  val_f1=0.8660  gap=+0.1320 [!] HIGH OVERFIT GAP
+2026-03-16 04:11:45 [INFO] src.train —     Fold time: 11.7s
+2026-03-16 04:11:45 [INFO] src.features —   Stylometric features: ENABLED (20 features)
+2026-03-16 04:11:57 [INFO] src.train —   Fold 4: train_f1=1.0000  val_f1=0.9037  gap=+0.0963
+2026-03-16 04:11:57 [INFO] src.train —     Fold time: 11.5s
+2026-03-16 04:11:57 [INFO] src.features —   Stylometric features: ENABLED (20 features)
+2026-03-16 04:12:08 [INFO] src.train —   Fold 5: train_f1=1.0000  val_f1=0.9137  gap=+0.0863
+2026-03-16 04:12:08 [INFO] src.train —     Fold time: 11.4s
+2026-03-16 04:12:08 [INFO] src.train —   sgd_hinge CV => mean_val_f1=0.8855 +/- 0.0225
+2026-03-16 04:12:08 [INFO] src.train —   Saved CV artifacts to: artifacts\experiments\2026-03-16_040332_run\sgd_hinge
+2026-03-16 04:12:08 [INFO] src.plots —   Saved overfitting plot: artifacts\experiments\2026-03-16_040332_run\plots\overfitting_sgd_hinge.png
+2026-03-16 04:12:08 [INFO] src.plots —   Saved confusion matrix plot: artifacts\experiments\2026-03-16_040332_run\plots\confusion_matrix_sgd_hinge.png
+2026-03-16 04:12:08 [INFO] src.train — 
+[Model: ridge_classifier]
+2026-03-16 04:12:08 [INFO] src.train —   Running 5-fold CV for model: ridge_classifier
+2026-03-16 04:12:08 [INFO] src.features —   Stylometric features: ENABLED (20 features)
+2026-03-16 04:12:23 [INFO] src.train —   Fold 1: train_f1=1.0000  val_f1=0.8806  gap=+0.1194 [!] HIGH OVERFIT GAP
+2026-03-16 04:12:23 [INFO] src.train —     Fold time: 14.2s
+2026-03-16 04:12:23 [INFO] src.features —   Stylometric features: ENABLED (20 features)
+2026-03-16 04:12:37 [INFO] src.train —   Fold 2: train_f1=1.0000  val_f1=0.8821  gap=+0.1179 [!] HIGH OVERFIT GAP
+2026-03-16 04:12:37 [INFO] src.train —     Fold time: 14.2s
+2026-03-16 04:12:37 [INFO] src.features —   Stylometric features: ENABLED (20 features)
+2026-03-16 04:12:51 [INFO] src.train —   Fold 3: train_f1=1.0000  val_f1=0.8889  gap=+0.1111 [!] HIGH OVERFIT GAP
+2026-03-16 04:12:51 [INFO] src.train —     Fold time: 14.6s
+2026-03-16 04:12:51 [INFO] src.features —   Stylometric features: ENABLED (20 features)
+2026-03-16 04:13:06 [INFO] src.train —   Fold 4: train_f1=1.0000  val_f1=0.9020  gap=+0.0980
+2026-03-16 04:13:06 [INFO] src.train —     Fold time: 14.4s
+2026-03-16 04:13:06 [INFO] src.features —   Stylometric features: ENABLED (20 features)
+2026-03-16 04:13:20 [INFO] src.train —   Fold 5: train_f1=1.0000  val_f1=0.8883  gap=+0.1117 [!] HIGH OVERFIT GAP
+2026-03-16 04:13:20 [INFO] src.train —     Fold time: 14.3s
+2026-03-16 04:13:20 [INFO] src.train —   ridge_classifier CV => mean_val_f1=0.8884 +/- 0.0076
+2026-03-16 04:13:20 [INFO] src.train —   Saved CV artifacts to: artifacts\experiments\2026-03-16_040332_run\ridge_classifier
+2026-03-16 04:13:20 [INFO] src.plots —   Saved overfitting plot: artifacts\experiments\2026-03-16_040332_run\plots\overfitting_ridge_classifier.png
+2026-03-16 04:13:20 [INFO] src.plots —   Saved confusion matrix plot: artifacts\experiments\2026-03-16_040332_run\plots\confusion_matrix_ridge_classifier.png
+2026-03-16 04:13:20 [INFO] src.train — 
+[Model: passive_aggressive]
+2026-03-16 04:13:20 [INFO] src.train —   Running 5-fold CV for model: passive_aggressive
+2026-03-16 04:13:20 [INFO] src.features —   Stylometric features: ENABLED (20 features)
+2026-03-16 04:13:32 [INFO] src.train —   Fold 1: train_f1=1.0000  val_f1=0.9018  gap=+0.0982
+2026-03-16 04:13:32 [INFO] src.train —     Fold time: 11.6s
+2026-03-16 04:13:32 [INFO] src.features —   Stylometric features: ENABLED (20 features)
+2026-03-16 04:13:43 [INFO] src.train —   Fold 2: train_f1=1.0000  val_f1=0.8419  gap=+0.1581 [!] HIGH OVERFIT GAP
+2026-03-16 04:13:43 [INFO] src.train —     Fold time: 11.4s
+2026-03-16 04:13:43 [INFO] src.features —   Stylometric features: ENABLED (20 features)
+2026-03-16 04:13:55 [INFO] src.train —   Fold 3: train_f1=1.0000  val_f1=0.8685  gap=+0.1315 [!] HIGH OVERFIT GAP
+2026-03-16 04:13:55 [INFO] src.train —     Fold time: 11.6s
+2026-03-16 04:13:55 [INFO] src.features —   Stylometric features: ENABLED (20 features)
+2026-03-16 04:14:06 [INFO] src.train —   Fold 4: train_f1=1.0000  val_f1=0.8902  gap=+0.1098 [!] HIGH OVERFIT GAP
+2026-03-16 04:14:06 [INFO] src.train —     Fold time: 11.5s
+2026-03-16 04:14:06 [INFO] src.features —   Stylometric features: ENABLED (20 features)
+2026-03-16 04:14:18 [INFO] src.train —   Fold 5: train_f1=1.0000  val_f1=0.8754  gap=+0.1246 [!] HIGH OVERFIT GAP
+2026-03-16 04:14:18 [INFO] src.train —     Fold time: 11.6s
+2026-03-16 04:14:18 [INFO] src.train —   passive_aggressive CV => mean_val_f1=0.8756 +/- 0.0204
+2026-03-16 04:14:18 [INFO] src.train —   Saved CV artifacts to: artifacts\experiments\2026-03-16_040332_run\passive_aggressive
+2026-03-16 04:14:18 [INFO] src.plots —   Saved overfitting plot: artifacts\experiments\2026-03-16_040332_run\plots\overfitting_passive_aggressive.png
+2026-03-16 04:14:18 [INFO] src.plots —   Saved confusion matrix plot: artifacts\experiments\2026-03-16_040332_run\plots\confusion_matrix_passive_aggressive.png
+2026-03-16 04:14:18 [INFO] src.train — 
+[Model: complement_nb]
+2026-03-16 04:14:18 [INFO] src.train —   Running 5-fold CV for model: complement_nb
+2026-03-16 04:14:18 [INFO] src.features —   Stylometric features: ENABLED (20 features)
+2026-03-16 04:14:31 [INFO] src.train —   Fold 1: train_f1=0.9291  val_f1=0.6964  gap=+0.2327 [!] HIGH OVERFIT GAP
+2026-03-16 04:14:31 [INFO] src.train —     Fold time: 12.5s
+2026-03-16 04:14:31 [INFO] src.features —   Stylometric features: ENABLED (20 features)
+2026-03-16 04:14:43 [INFO] src.train —   Fold 2: train_f1=0.9384  val_f1=0.6975  gap=+0.2410 [!] HIGH OVERFIT GAP
+2026-03-16 04:14:43 [INFO] src.train —     Fold time: 12.4s
+2026-03-16 04:14:43 [INFO] src.features —   Stylometric features: ENABLED (20 features)
+2026-03-16 04:14:55 [INFO] src.train —   Fold 3: train_f1=0.9341  val_f1=0.6534  gap=+0.2807 [!] HIGH OVERFIT GAP
+2026-03-16 04:14:55 [INFO] src.train —     Fold time: 12.4s
+2026-03-16 04:14:55 [INFO] src.features —   Stylometric features: ENABLED (20 features)
+2026-03-16 04:15:08 [INFO] src.train —   Fold 4: train_f1=0.9343  val_f1=0.6914  gap=+0.2429 [!] HIGH OVERFIT GAP
+2026-03-16 04:15:08 [INFO] src.train —     Fold time: 12.4s
+2026-03-16 04:15:08 [INFO] src.features —   Stylometric features: ENABLED (20 features)
+2026-03-16 04:15:20 [INFO] src.train —   Fold 5: train_f1=0.9475  val_f1=0.6903  gap=+0.2573 [!] HIGH OVERFIT GAP
+2026-03-16 04:15:20 [INFO] src.train —     Fold time: 12.5s
+2026-03-16 04:15:20 [INFO] src.train —   complement_nb CV => mean_val_f1=0.6858 +/- 0.0164
+2026-03-16 04:15:20 [INFO] src.train —   Saved CV artifacts to: artifacts\experiments\2026-03-16_040332_run\complement_nb
+2026-03-16 04:15:20 [INFO] src.plots —   Saved overfitting plot: artifacts\experiments\2026-03-16_040332_run\plots\overfitting_complement_nb.png
+2026-03-16 04:15:20 [INFO] src.plots —   Saved confusion matrix plot: artifacts\experiments\2026-03-16_040332_run\plots\confusion_matrix_complement_nb.png
+2026-03-16 04:15:20 [INFO] src.train — 
+[Model: ensemble_top3]
+2026-03-16 04:15:20 [INFO] src.train —   Running 5-fold CV for model: ensemble_top3
+2026-03-16 04:15:20 [INFO] src.features —   Stylometric features: ENABLED (20 features)
+2026-03-16 04:15:40 [INFO] src.train —   Fold 1: train_f1=1.0000  val_f1=0.8924  gap=+0.1076 [!] HIGH OVERFIT GAP
+2026-03-16 04:15:40 [INFO] src.train —     Fold time: 19.5s
+2026-03-16 04:15:40 [INFO] src.features —   Stylometric features: ENABLED (20 features)
+2026-03-16 04:16:00 [INFO] src.train —   Fold 2: train_f1=1.0000  val_f1=0.8821  gap=+0.1179 [!] HIGH OVERFIT GAP
+2026-03-16 04:16:00 [INFO] src.train —     Fold time: 19.8s
+2026-03-16 04:16:00 [INFO] src.features —   Stylometric features: ENABLED (20 features)
+2026-03-16 04:16:20 [INFO] src.train —   Fold 3: train_f1=1.0000  val_f1=0.8906  gap=+0.1094 [!] HIGH OVERFIT GAP
+2026-03-16 04:16:20 [INFO] src.train —     Fold time: 20.2s
+2026-03-16 04:16:20 [INFO] src.features —   Stylometric features: ENABLED (20 features)
+2026-03-16 04:16:40 [INFO] src.train —   Fold 4: train_f1=1.0000  val_f1=0.9145  gap=+0.0855
+2026-03-16 04:16:40 [INFO] src.train —     Fold time: 19.6s
+2026-03-16 04:16:40 [INFO] src.features —   Stylometric features: ENABLED (20 features)
+2026-03-16 04:16:59 [INFO] src.train —   Fold 5: train_f1=1.0000  val_f1=0.8962  gap=+0.1038 [!] HIGH OVERFIT GAP
+2026-03-16 04:16:59 [INFO] src.train —     Fold time: 19.4s
+2026-03-16 04:16:59 [INFO] src.train —   ensemble_top3 CV => mean_val_f1=0.8952 +/- 0.0107
+2026-03-16 04:16:59 [INFO] src.train —   Saved CV artifacts to: artifacts\experiments\2026-03-16_040332_run\ensemble_top3
+2026-03-16 04:16:59 [INFO] src.plots —   Saved overfitting plot: artifacts\experiments\2026-03-16_040332_run\plots\overfitting_ensemble_top3.png
+2026-03-16 04:16:59 [INFO] src.plots —   Saved confusion matrix plot: artifacts\experiments\2026-03-16_040332_run\plots\confusion_matrix_ensemble_top3.png
+2026-03-16 04:16:59 [INFO] src.train — 
+Model Comparison:
+2026-03-16 04:16:59 [INFO] src.train —
+                       model  mean_val_macro_f1  std_val_macro_f1  mean_train_macro_f1  mean_overfit_gap  oof_macro_f1  oof_accuracy
+logistic_regression_balanced             0.9057            0.0106               0.9997            0.0940        0.9059        0.9754
+               ensemble_top3             0.8952            0.0107               1.0000            0.1048        0.8954        0.9754
+            ridge_classifier             0.8884            0.0076               1.0000            0.1116        0.8884        0.9742
+                   sgd_hinge             0.8855            0.0225               0.9996            0.1141        0.8876        0.9729
+                     sgd_log             0.8837            0.0240               1.0000            0.1163        0.8872        0.9733
+          passive_aggressive             0.8756            0.0204               1.0000            0.1244        0.8781        0.9729
+         linear_svc_balanced             0.8694            0.0189               0.9997            0.1303        0.8705        0.9708
+              calibrated_svc             0.8521            0.0212               0.9981            0.1460        0.8536        0.9671
+         logistic_regression             0.8202            0.0213               0.9970            0.1768        0.8226        0.9613
+                  linear_svc             0.8015            0.0057               0.9897            0.1883        0.8019        0.9604
+               complement_nb             0.6858            0.0164               0.9367            0.2509        0.6885        0.9104
+2026-03-16 04:16:59 [INFO] src.train —
+Best model: logistic_regression_balanced  (val_f1=0.9057)
+2026-03-16 04:16:59 [INFO] src.plots — Saved model comparison plot: artifacts\experiments\2026-03-16_040332_run\plots\model_comparison.png
+2026-03-16 04:17:00 [INFO] src.plots — Saved combined overfitting plot: artifacts\experiments\2026-03-16_040332_run\plots\overfitting_all_models.png
+2026-03-16 04:17:00 [INFO] main_train — Model comparison saved to: artifacts\metrics\model_comparison.csv
+2026-03-16 04:17:00 [INFO] main_train — CV best model: logistic_regression_balanced | Config best model: ensemble_top3
+2026-03-16 04:17:00 [INFO] main_train — Plots saved to: artifacts\experiments\2026-03-16_040332_run\plots
+2026-03-16 04:17:00 [INFO] main_train —
+Training final model: ensemble_top3
+2026-03-16 04:17:00 [INFO] src.train — ============================================================
+2026-03-16 04:17:00 [INFO] src.train — FINAL TRAINING — model: ensemble_top3
+2026-03-16 04:17:00 [INFO] src.train —   Training samples: 2400
+2026-03-16 04:17:00 [INFO] src.features —   Stylometric features: ENABLED (20 features)
+2026-03-16 04:17:18 [INFO] src.train —   Final training completed in 18.3s
+2026-03-16 04:17:19 [INFO] src.train —   Pipeline saved to: artifacts/models/best_model.joblib
+2026-03-16 04:17:20 [INFO] main_train — Final model also saved to: artifacts\experiments\2026-03-16_040332_run\best_model.joblib
+2026-03-16 04:17:20 [INFO] main_train — ============================================================
+2026-03-16 04:17:20 [INFO] main_train — TRAINING COMPLETE
+2026-03-16 04:17:20 [INFO] main_train —   Total time     : 828.4s
+2026-03-16 04:17:20 [INFO] main_train —   Best model     : ensemble_top3
+2026-03-16 04:17:20 [INFO] main_train —   Model artifact : artifacts/models/best_model.joblib
+2026-03-16 04:17:20 [INFO] main_train —   Plots dir      : artifacts\experiments\2026-03-16_040332_run\plots
+2026-03-16 04:17:20 [INFO] main_train —   Experiment dir : artifacts\experiments\2026-03-16_040332_run
+2026-03-16 04:17:20 [INFO] main_train — ============================================================
+2026-03-16 04:17:20 [INFO] main_train — Next step: python main_infer.py --config configs/config.yaml
+(.env) PS D:\hachaton\text-authorship-detection> 
