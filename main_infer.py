@@ -81,6 +81,15 @@ def parse_args():
         action="store_true",
         help="List all available .joblib model files and exit.",
     )
+    parser.add_argument(
+        "--no-thresholds",
+        action="store_true",
+        help=(
+            "Skip loading and applying per-class thresholds from thresholds.json. "
+            "Use this for a clean no-threshold submission (recommended for LB — "
+            "threshold optimizer consistently hurts LB per Runs 16-17 analysis)."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -115,7 +124,9 @@ def main():
     thresholds = None
     ds_grok_pair_threshold = None
     threshold_path = Path(paths.get("artifacts_dir", "artifacts")) / "thresholds.json"
-    if threshold_path.exists():
+    if args.no_thresholds:
+        logger.info("  --no-thresholds flag set: skipping threshold application.")
+    elif threshold_path.exists():
         try:
             thresh_data = load_json(str(threshold_path))
             thresholds = thresh_data.get("thresholds")

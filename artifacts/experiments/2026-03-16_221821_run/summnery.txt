@@ -1,0 +1,476 @@
+>> python main_infer.py --config configs/config.yaml
+2026-03-16 22:18:21 [INFO] main_train — ============================================================
+2026-03-16 22:18:21 [INFO] main_train — SYSTEM INFO
+2026-03-16 22:18:21 [INFO] main_train —   Python      : 3.12.10
+2026-03-16 22:18:21 [INFO] main_train —   Platform    : Windows-11-10.0.26200-SP0
+2026-03-16 22:18:21 [INFO] main_train —   NumPy       : 2.4.3
+2026-03-16 22:18:21 [INFO] main_train —   Pandas      : 3.0.1
+2026-03-16 22:18:21 [INFO] main_train —   scikit-learn: 1.8.0
+2026-03-16 22:18:21 [INFO] main_train — ============================================================
+2026-03-16 22:18:21 [INFO] main_train — Config loaded from : configs/config.yaml
+2026-03-16 22:18:21 [INFO] main_train — Experiment dir     : artifacts\experiments\2026-03-16_221821_run
+2026-03-16 22:18:21 [INFO] main_train — Loading training data...
+2026-03-16 22:18:21 [INFO] src.data — Loading train data from: data\train.csv
+2026-03-16 22:18:21 [INFO] src.data —   Raw shape: (2400, 2)
+2026-03-16 22:18:21 [INFO] src.data —   Cleaned shape: (2400, 2)
+2026-03-16 22:18:21 [INFO] src.data —   Class distribution:
+LABEL
+0    1520
+1      80
+2     160
+3      80
+4     240
+5     320
+2026-03-16 22:18:21 [INFO] main_train — Dataset: 2400 samples, 6 classes
+2026-03-16 22:18:21 [INFO] main_train —
+Starting model comparison (CV + learning curves)...
+2026-03-16 22:18:21 [INFO] src.train — ============================================================
+2026-03-16 22:18:21 [INFO] src.train — MODEL COMPARISON
+2026-03-16 22:18:21 [INFO] src.train — ============================================================
+2026-03-16 22:18:21 [INFO] src.train —
+[Model: two_stage_top2]
+2026-03-16 22:18:21 [INFO] src.train —
+=================================================================
+2026-03-16 22:18:21 [INFO] src.train —   MODEL: two_stage_top2
+2026-03-16 22:18:21 [INFO] src.train — =================================================================
+2026-03-16 22:18:21 [INFO] src.features —   Stylometric features: ENABLED (43 features)
+2026-03-16 22:18:21 [INFO] src.features —   Function-word TF-IDF: ENABLED (151 words)
+2026-03-16 22:18:44 [INFO] src.train —   Fold 1/5 | train=0.9977  val=0.9331  time=23s *** NEW BEST FOLD ***
+2026-03-16 22:18:44 [INFO] src.features —   Stylometric features: ENABLED (43 features)
+2026-03-16 22:18:44 [INFO] src.features —   Function-word TF-IDF: ENABLED (151 words)
+2026-03-16 22:19:06 [INFO] src.train —   Fold 2/5 | train=0.9981  val=0.9296  time=22s
+2026-03-16 22:19:06 [INFO] src.features —   Stylometric features: ENABLED (43 features)
+2026-03-16 22:19:06 [INFO] src.features —   Function-word TF-IDF: ENABLED (151 words)
+2026-03-16 22:19:27 [INFO] src.train —   Fold 3/5 | train=0.9977  val=0.9401  time=20s *** NEW BEST FOLD ***
+2026-03-16 22:19:27 [INFO] src.features —   Stylometric features: ENABLED (43 features)
+2026-03-16 22:19:27 [INFO] src.features —   Function-word TF-IDF: ENABLED (151 words)
+2026-03-16 22:19:49 [INFO] src.train —   Fold 4/5 | train=0.9996  val=0.9564  time=22s *** NEW BEST FOLD ***
+2026-03-16 22:19:49 [INFO] src.features —   Stylometric features: ENABLED (43 features)
+2026-03-16 22:19:49 [INFO] src.features —   Function-word TF-IDF: ENABLED (151 words)
+2026-03-16 22:20:13 [INFO] src.train —   Fold 5/5 | train=0.9963  val=0.8925  time=24s
+2026-03-16 22:20:13 [INFO] src.train — 
+  two_stage_top2 fold results: [0.9331, 0.9296, 0.9401, 0.9564, 0.8925]
+2026-03-16 22:20:13 [INFO] src.train —   Best fold F1   : 0.9564
+2026-03-16 22:20:13 [INFO] src.train —   two_stage_top2 FINAL => mean=0.9303  std=0.0210  oof=0.9313  overfit_gap=0.0675
+2026-03-16 22:20:13 [INFO] src.train — =================================================================
+
+2026-03-16 22:20:13 [INFO] src.train —   Saved CV artifacts to: artifacts\experiments\2026-03-16_221821_run\two_stage_top2
+2026-03-16 22:20:14 [INFO] src.train —   Best fold model saved (val_f1=0.9564): artifacts\experiments\2026-03-16_221821_run\two_stage_top2\best_fold_model.joblib
+2026-03-16 22:20:14 [INFO] src.plots —   Saved overfitting plot: artifacts\experiments\2026-03-16_221821_run\plots\overfitting_two_stage_top2.png
+2026-03-16 22:20:14 [INFO] src.plots —   Saved confusion matrix plot: artifacts\experiments\2026-03-16_221821_run\plots\confusion_matrix_two_stage_top2.png
+2026-03-16 22:20:14 [INFO] src.train —   >>> NEW BEST: two_stage_top2 = 0.9303
+2026-03-16 22:20:14 [INFO] src.train —
+[Model: ensemble_mlp]
+2026-03-16 22:20:14 [INFO] src.train —
+=================================================================
+2026-03-16 22:20:14 [INFO] src.train —   MODEL: ensemble_mlp
+2026-03-16 22:20:14 [INFO] src.train — =================================================================
+2026-03-16 22:20:14 [INFO] src.features —   Stylometric features: ENABLED (43 features)
+2026-03-16 22:20:14 [INFO] src.features —   Function-word TF-IDF: ENABLED (151 words)
+2026-03-16 22:21:18 [INFO] src.train —   Fold 1/5 | train=0.9900  val=0.9236  time=64s *** NEW BEST FOLD ***
+2026-03-16 22:21:18 [INFO] src.features —   Stylometric features: ENABLED (43 features)
+2026-03-16 22:21:18 [INFO] src.features —   Function-word TF-IDF: ENABLED (151 words)
+2026-03-16 22:22:24 [INFO] src.train —   Fold 2/5 | train=0.9961  val=0.9312  time=66s *** NEW BEST FOLD ***
+2026-03-16 22:22:24 [INFO] src.features —   Stylometric features: ENABLED (43 features)
+2026-03-16 22:22:24 [INFO] src.features —   Function-word TF-IDF: ENABLED (151 words)
+2026-03-16 22:23:33 [INFO] src.train —   Fold 3/5 | train=0.9980  val=0.9337  time=70s *** NEW BEST FOLD ***
+2026-03-16 22:23:33 [INFO] src.features —   Stylometric features: ENABLED (43 features)
+2026-03-16 22:23:33 [INFO] src.features —   Function-word TF-IDF: ENABLED (151 words)
+2026-03-16 22:24:38 [INFO] src.train —   Fold 4/5 | train=0.9942  val=0.9634  time=64s *** NEW BEST FOLD ***
+2026-03-16 22:24:38 [INFO] src.features —   Stylometric features: ENABLED (43 features)
+2026-03-16 22:24:38 [INFO] src.features —   Function-word TF-IDF: ENABLED (151 words)
+2026-03-16 22:25:44 [INFO] src.train —   Fold 5/5 | train=0.9957  val=0.9008  time=67s
+2026-03-16 22:25:44 [INFO] src.train — 
+  ensemble_mlp fold results: [0.9236, 0.9312, 0.9337, 0.9634, 0.9008]
+2026-03-16 22:25:44 [INFO] src.train —   Best fold F1   : 0.9634
+2026-03-16 22:25:44 [INFO] src.train —   ensemble_mlp FINAL => mean=0.9305  std=0.0201  oof=0.9314  overfit_gap=0.0643
+2026-03-16 22:25:44 [INFO] src.train — =================================================================
+
+2026-03-16 22:25:44 [INFO] src.train —   Saved CV artifacts to: artifacts\experiments\2026-03-16_221821_run\ensemble_mlp
+2026-03-16 22:25:45 [INFO] src.train —   Best fold model saved (val_f1=0.9634): artifacts\experiments\2026-03-16_221821_run\ensemble_mlp\best_fold_model.joblib
+2026-03-16 22:25:45 [INFO] src.plots —   Saved overfitting plot: artifacts\experiments\2026-03-16_221821_run\plots\overfitting_ensemble_mlp.png
+2026-03-16 22:25:45 [INFO] src.plots —   Saved confusion matrix plot: artifacts\experiments\2026-03-16_221821_run\plots\confusion_matrix_ensemble_mlp.png
+2026-03-16 22:25:45 [INFO] src.train —   >>> NEW BEST: ensemble_mlp = 0.9305
+2026-03-16 22:25:45 [INFO] src.train — 
+[Model: lgbm_svd]
+2026-03-16 22:25:45 [INFO] src.train —
+=================================================================
+2026-03-16 22:25:45 [INFO] src.train —   MODEL: lgbm_svd
+2026-03-16 22:25:45 [INFO] src.train — =================================================================
+2026-03-16 22:25:45 [INFO] src.features —   Stylometric features: ENABLED (43 features)
+2026-03-16 22:25:45 [INFO] src.features —   Function-word TF-IDF: ENABLED (151 words)
+D:\hachaton\text-authorship-detection\.env\Lib\site-packages\sklearn\utils\validation.py:2691: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names
+  warnings.warn(
+D:\hachaton\text-authorship-detection\.env\Lib\site-packages\sklearn\utils\validation.py:2691: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names
+  warnings.warn(
+D:\hachaton\text-authorship-detection\.env\Lib\site-packages\sklearn\utils\validation.py:2691: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names
+  warnings.warn(
+2026-03-16 22:26:23 [INFO] src.train —   Fold 1/5 | train=1.0000  val=0.9165  time=38s *** NEW BEST FOLD ***
+2026-03-16 22:26:23 [INFO] src.features —   Stylometric features: ENABLED (43 features)
+2026-03-16 22:26:23 [INFO] src.features —   Function-word TF-IDF: ENABLED (151 words)
+D:\hachaton\text-authorship-detection\.env\Lib\site-packages\sklearn\utils\validation.py:2691: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names
+  warnings.warn(
+D:\hachaton\text-authorship-detection\.env\Lib\site-packages\sklearn\utils\validation.py:2691: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names
+  warnings.warn(
+D:\hachaton\text-authorship-detection\.env\Lib\site-packages\sklearn\utils\validation.py:2691: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names
+  warnings.warn(
+2026-03-16 22:26:59 [INFO] src.train —   Fold 2/5 | train=1.0000  val=0.9410  time=36s *** NEW BEST FOLD ***
+2026-03-16 22:26:59 [INFO] src.features —   Stylometric features: ENABLED (43 features)
+2026-03-16 22:26:59 [INFO] src.features —   Function-word TF-IDF: ENABLED (151 words)
+D:\hachaton\text-authorship-detection\.env\Lib\site-packages\sklearn\utils\validation.py:2691: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names
+  warnings.warn(
+D:\hachaton\text-authorship-detection\.env\Lib\site-packages\sklearn\utils\validation.py:2691: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names
+  warnings.warn(
+D:\hachaton\text-authorship-detection\.env\Lib\site-packages\sklearn\utils\validation.py:2691: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names
+  warnings.warn(
+2026-03-16 22:27:35 [INFO] src.train —   Fold 3/5 | train=1.0000  val=0.9224  time=36s
+2026-03-16 22:27:35 [INFO] src.features —   Stylometric features: ENABLED (43 features)
+2026-03-16 22:27:35 [INFO] src.features —   Function-word TF-IDF: ENABLED (151 words)
+D:\hachaton\text-authorship-detection\.env\Lib\site-packages\sklearn\utils\validation.py:2691: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names
+  warnings.warn(
+D:\hachaton\text-authorship-detection\.env\Lib\site-packages\sklearn\utils\validation.py:2691: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names
+  warnings.warn(
+D:\hachaton\text-authorship-detection\.env\Lib\site-packages\sklearn\utils\validation.py:2691: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names
+  warnings.warn(
+2026-03-16 22:28:11 [INFO] src.train —   Fold 4/5 | train=1.0000  val=0.9099  time=36s
+2026-03-16 22:28:11 [INFO] src.features —   Stylometric features: ENABLED (43 features)
+2026-03-16 22:28:11 [INFO] src.features —   Function-word TF-IDF: ENABLED (151 words)
+D:\hachaton\text-authorship-detection\.env\Lib\site-packages\sklearn\utils\validation.py:2691: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names
+  warnings.warn(
+D:\hachaton\text-authorship-detection\.env\Lib\site-packages\sklearn\utils\validation.py:2691: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names
+  warnings.warn(
+D:\hachaton\text-authorship-detection\.env\Lib\site-packages\sklearn\utils\validation.py:2691: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names
+  warnings.warn(
+2026-03-16 22:28:47 [INFO] src.train —   Fold 5/5 | train=1.0000  val=0.9297  time=36s
+2026-03-16 22:28:47 [INFO] src.train —
+  lgbm_svd fold results: [0.9165, 0.941, 0.9224, 0.9099, 0.9297]
+2026-03-16 22:28:47 [INFO] src.train —   Best fold F1   : 0.9410
+2026-03-16 22:28:47 [INFO] src.train —   lgbm_svd FINAL => mean=0.9239  std=0.0108  oof=0.9237  overfit_gap=0.0761
+2026-03-16 22:28:47 [INFO] src.train — =================================================================
+
+2026-03-16 22:28:47 [INFO] src.train —   Saved CV artifacts to: artifacts\experiments\2026-03-16_221821_run\lgbm_svd
+2026-03-16 22:28:48 [INFO] src.train —   Best fold model saved (val_f1=0.9410): artifacts\experiments\2026-03-16_221821_run\lgbm_svd\best_fold_model.joblib
+2026-03-16 22:28:48 [INFO] src.plots —   Saved overfitting plot: artifacts\experiments\2026-03-16_221821_run\plots\overfitting_lgbm_svd.png
+2026-03-16 22:28:48 [INFO] src.plots —   Saved confusion matrix plot: artifacts\experiments\2026-03-16_221821_run\plots\confusion_matrix_lgbm_svd.png
+2026-03-16 22:28:48 [INFO] src.train —   (best so far: 0.9305, this: 0.9239)
+2026-03-16 22:28:48 [INFO] src.train —
+[Model: ensemble_lgbm]
+2026-03-16 22:28:48 [INFO] src.train —
+=================================================================
+2026-03-16 22:28:48 [INFO] src.train —   MODEL: ensemble_lgbm
+2026-03-16 22:28:48 [INFO] src.train — =================================================================
+2026-03-16 22:28:48 [INFO] src.features —   Stylometric features: ENABLED (43 features)
+2026-03-16 22:28:48 [INFO] src.features —   Function-word TF-IDF: ENABLED (151 words)
+D:\hachaton\text-authorship-detection\.env\Lib\site-packages\sklearn\utils\validation.py:2691: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names
+  warnings.warn(
+D:\hachaton\text-authorship-detection\.env\Lib\site-packages\sklearn\utils\validation.py:2691: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names
+  warnings.warn(
+D:\hachaton\text-authorship-detection\.env\Lib\site-packages\sklearn\utils\validation.py:2691: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names
+  warnings.warn(
+2026-03-16 22:29:29 [INFO] src.train —   Fold 1/5 | train=1.0000  val=0.9165  time=42s *** NEW BEST FOLD ***
+2026-03-16 22:29:29 [INFO] src.features —   Stylometric features: ENABLED (43 features)
+2026-03-16 22:29:29 [INFO] src.features —   Function-word TF-IDF: ENABLED (151 words)
+D:\hachaton\text-authorship-detection\.env\Lib\site-packages\sklearn\utils\validation.py:2691: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names
+  warnings.warn(
+D:\hachaton\text-authorship-detection\.env\Lib\site-packages\sklearn\utils\validation.py:2691: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names
+  warnings.warn(
+D:\hachaton\text-authorship-detection\.env\Lib\site-packages\sklearn\utils\validation.py:2691: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names
+  warnings.warn(
+2026-03-16 22:30:10 [INFO] src.train —   Fold 2/5 | train=1.0000  val=0.9410  time=41s *** NEW BEST FOLD ***
+2026-03-16 22:30:10 [INFO] src.features —   Stylometric features: ENABLED (43 features)
+2026-03-16 22:30:10 [INFO] src.features —   Function-word TF-IDF: ENABLED (151 words)
+D:\hachaton\text-authorship-detection\.env\Lib\site-packages\sklearn\utils\validation.py:2691: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names
+  warnings.warn(
+D:\hachaton\text-authorship-detection\.env\Lib\site-packages\sklearn\utils\validation.py:2691: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names
+  warnings.warn(
+D:\hachaton\text-authorship-detection\.env\Lib\site-packages\sklearn\utils\validation.py:2691: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names
+  warnings.warn(
+2026-03-16 22:30:51 [INFO] src.train —   Fold 3/5 | train=1.0000  val=0.9373  time=40s
+2026-03-16 22:30:51 [INFO] src.features —   Stylometric features: ENABLED (43 features)
+2026-03-16 22:30:51 [INFO] src.features —   Function-word TF-IDF: ENABLED (151 words)
+D:\hachaton\text-authorship-detection\.env\Lib\site-packages\sklearn\utils\validation.py:2691: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names
+  warnings.warn(
+D:\hachaton\text-authorship-detection\.env\Lib\site-packages\sklearn\utils\validation.py:2691: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names
+  warnings.warn(
+D:\hachaton\text-authorship-detection\.env\Lib\site-packages\sklearn\utils\validation.py:2691: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names
+  warnings.warn(
+2026-03-16 22:31:30 [INFO] src.train —   Fold 4/5 | train=1.0000  val=0.9362  time=40s
+2026-03-16 22:31:30 [INFO] src.features —   Stylometric features: ENABLED (43 features)
+2026-03-16 22:31:30 [INFO] src.features —   Function-word TF-IDF: ENABLED (151 words)
+D:\hachaton\text-authorship-detection\.env\Lib\site-packages\sklearn\utils\validation.py:2691: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names
+  warnings.warn(
+D:\hachaton\text-authorship-detection\.env\Lib\site-packages\sklearn\utils\validation.py:2691: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names
+  warnings.warn(
+D:\hachaton\text-authorship-detection\.env\Lib\site-packages\sklearn\utils\validation.py:2691: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names
+  warnings.warn(
+2026-03-16 22:32:11 [INFO] src.train —   Fold 5/5 | train=1.0000  val=0.9362  time=40s
+2026-03-16 22:32:11 [INFO] src.train —
+  ensemble_lgbm fold results: [0.9165, 0.941, 0.9373, 0.9362, 0.9362]
+2026-03-16 22:32:11 [INFO] src.train —   Best fold F1   : 0.9410
+2026-03-16 22:32:11 [INFO] src.train —   ensemble_lgbm FINAL => mean=0.9334  std=0.0087  oof=0.9338  overfit_gap=0.0666
+2026-03-16 22:32:11 [INFO] src.train — =================================================================
+
+2026-03-16 22:32:11 [INFO] src.train —   Saved CV artifacts to: artifacts\experiments\2026-03-16_221821_run\ensemble_lgbm
+2026-03-16 22:32:11 [INFO] src.train —   Best fold model saved (val_f1=0.9410): artifacts\experiments\2026-03-16_221821_run\ensemble_lgbm\best_fold_model.joblib
+2026-03-16 22:32:12 [INFO] src.plots —   Saved overfitting plot: artifacts\experiments\2026-03-16_221821_run\plots\overfitting_ensemble_lgbm.png
+2026-03-16 22:32:12 [INFO] src.plots —   Saved confusion matrix plot: artifacts\experiments\2026-03-16_221821_run\plots\confusion_matrix_ensemble_lgbm.png
+2026-03-16 22:32:12 [INFO] src.train —   >>> NEW BEST: ensemble_lgbm = 0.9334
+2026-03-16 22:32:12 [INFO] src.train — 
+[Model: mlp_svd_calibrated_sigmoid]
+2026-03-16 22:32:12 [INFO] src.train —
+=================================================================
+2026-03-16 22:32:12 [INFO] src.train —   MODEL: mlp_svd_calibrated_sigmoid
+2026-03-16 22:32:12 [INFO] src.train — =================================================================
+2026-03-16 22:32:12 [INFO] src.features —   Stylometric features: ENABLED (43 features)
+2026-03-16 22:32:12 [INFO] src.features —   Function-word TF-IDF: ENABLED (151 words)
+2026-03-16 22:34:00 [INFO] src.train —   Fold 1/5 | train=0.9850  val=0.9101  time=108s *** NEW BEST FOLD ***
+2026-03-16 22:34:00 [INFO] src.features —   Stylometric features: ENABLED (43 features)
+2026-03-16 22:34:00 [INFO] src.features —   Function-word TF-IDF: ENABLED (151 words)
+2026-03-16 22:35:56 [INFO] src.train —   Fold 2/5 | train=0.9854  val=0.9285  time=116s *** NEW BEST FOLD ***
+2026-03-16 22:35:56 [INFO] src.features —   Stylometric features: ENABLED (43 features)
+2026-03-16 22:35:56 [INFO] src.features —   Function-word TF-IDF: ENABLED (151 words)
+2026-03-16 22:38:01 [INFO] src.train —   Fold 3/5 | train=0.9975  val=0.9496  time=125s *** NEW BEST FOLD ***
+2026-03-16 22:38:01 [INFO] src.features —   Stylometric features: ENABLED (43 features)
+2026-03-16 22:38:01 [INFO] src.features —   Function-word TF-IDF: ENABLED (151 words)
+2026-03-16 22:40:08 [INFO] src.train —   Fold 4/5 | train=0.9914  val=0.9491  time=127s
+2026-03-16 22:40:08 [INFO] src.features —   Stylometric features: ENABLED (43 features)
+2026-03-16 22:40:08 [INFO] src.features —   Function-word TF-IDF: ENABLED (151 words)
+2026-03-16 22:42:16 [INFO] src.train —   Fold 5/5 | train=0.9937  val=0.8905  time=129s
+2026-03-16 22:42:16 [INFO] src.train — 
+  mlp_svd_calibrated_sigmoid fold results: [0.9101, 0.9285, 0.9496, 0.9491, 0.8905]
+2026-03-16 22:42:16 [INFO] src.train —   Best fold F1   : 0.9496
+2026-03-16 22:42:17 [INFO] src.train —   mlp_svd_calibrated_sigmoid FINAL => mean=0.9256  std=0.0228  oof=0.9263  overfit_gap=0.0650 
+2026-03-16 22:42:17 [INFO] src.train — =================================================================
+
+2026-03-16 22:42:17 [INFO] src.train —   Saved CV artifacts to: artifacts\experiments\2026-03-16_221821_run\mlp_svd_calibrated_sigmoid
+2026-03-16 22:42:18 [INFO] src.train —   Best fold model saved (val_f1=0.9496): artifacts\experiments\2026-03-16_221821_run\mlp_svd_calibrated_sigmoid\best_fold_model.joblib
+2026-03-16 22:42:18 [INFO] src.plots —   Saved overfitting plot: artifacts\experiments\2026-03-16_221821_run\plots\overfitting_mlp_svd_calibrated_sigmoid.png
+2026-03-16 22:42:18 [INFO] src.plots —   Saved confusion matrix plot: artifacts\experiments\2026-03-16_221821_run\plots\confusion_matrix_mlp_svd_calibrated_sigmoid.png
+2026-03-16 22:42:18 [INFO] src.train —   (best so far: 0.9334, this: 0.9256)
+2026-03-16 22:42:18 [INFO] src.train — 
+[Model: stacking_lgbm]
+2026-03-16 22:42:18 [INFO] src.train —
+=================================================================
+2026-03-16 22:42:18 [INFO] src.train —   MODEL: stacking_lgbm
+2026-03-16 22:42:18 [INFO] src.train — =================================================================
+2026-03-16 22:42:18 [INFO] src.features —   Stylometric features: ENABLED (43 features)
+2026-03-16 22:42:18 [INFO] src.features —   Function-word TF-IDF: ENABLED (151 words)
+D:\hachaton\text-authorship-detection\.env\Lib\site-packages\sklearn\utils\validation.py:2691: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names
+  warnings.warn(
+D:\hachaton\text-authorship-detection\.env\Lib\site-packages\sklearn\utils\validation.py:2691: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names
+  warnings.warn(
+D:\hachaton\text-authorship-detection\.env\Lib\site-packages\sklearn\utils\validation.py:2691: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names
+  warnings.warn(
+D:\hachaton\text-authorship-detection\.env\Lib\site-packages\sklearn\utils\validation.py:2691: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names
+  warnings.warn(
+D:\hachaton\text-authorship-detection\.env\Lib\site-packages\sklearn\utils\validation.py:2691: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names
+  warnings.warn(
+D:\hachaton\text-authorship-detection\.env\Lib\site-packages\sklearn\utils\validation.py:2691: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names
+  warnings.warn(
+2026-03-16 22:46:30 [INFO] src.train —   Fold 1/5 | train=0.9981  val=0.9176  time=251s *** NEW BEST FOLD ***
+2026-03-16 22:46:30 [INFO] src.features —   Stylometric features: ENABLED (43 features)
+2026-03-16 22:46:30 [INFO] src.features —   Function-word TF-IDF: ENABLED (151 words)
+D:\hachaton\text-authorship-detection\.env\Lib\site-packages\sklearn\utils\validation.py:2691: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names
+  warnings.warn(
+D:\hachaton\text-authorship-detection\.env\Lib\site-packages\sklearn\utils\validation.py:2691: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names
+  warnings.warn(
+D:\hachaton\text-authorship-detection\.env\Lib\site-packages\sklearn\utils\validation.py:2691: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names
+  warnings.warn(
+D:\hachaton\text-authorship-detection\.env\Lib\site-packages\sklearn\utils\validation.py:2691: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names
+  warnings.warn(
+D:\hachaton\text-authorship-detection\.env\Lib\site-packages\sklearn\utils\validation.py:2691: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names
+  warnings.warn(
+D:\hachaton\text-authorship-detection\.env\Lib\site-packages\sklearn\utils\validation.py:2691: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names
+  warnings.warn(
+2026-03-16 22:50:23 [INFO] src.train —   Fold 2/5 | train=1.0000  val=0.9581  time=233s *** NEW BEST FOLD ***
+2026-03-16 22:50:23 [INFO] src.features —   Stylometric features: ENABLED (43 features)
+2026-03-16 22:50:23 [INFO] src.features —   Function-word TF-IDF: ENABLED (151 words)
+D:\hachaton\text-authorship-detection\.env\Lib\site-packages\sklearn\utils\validation.py:2691: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names
+  warnings.warn(
+D:\hachaton\text-authorship-detection\.env\Lib\site-packages\sklearn\utils\validation.py:2691: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names
+  warnings.warn(
+D:\hachaton\text-authorship-detection\.env\Lib\site-packages\sklearn\utils\validation.py:2691: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names
+  warnings.warn(
+D:\hachaton\text-authorship-detection\.env\Lib\site-packages\sklearn\utils\validation.py:2691: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names 
+  warnings.warn(
+D:\hachaton\text-authorship-detection\.env\Lib\site-packages\sklearn\utils\validation.py:2691: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names 
+  warnings.warn(
+D:\hachaton\text-authorship-detection\.env\Lib\site-packages\sklearn\utils\validation.py:2691: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names 
+  warnings.warn(
+2026-03-16 22:54:15 [INFO] src.train —   Fold 3/5 | train=1.0000  val=0.9448  time=232s
+2026-03-16 22:54:15 [INFO] src.features —   Stylometric features: ENABLED (43 features)
+2026-03-16 22:54:15 [INFO] src.features —   Function-word TF-IDF: ENABLED (151 words)
+D:\hachaton\text-authorship-detection\.env\Lib\site-packages\sklearn\utils\validation.py:2691: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names 
+  warnings.warn(
+D:\hachaton\text-authorship-detection\.env\Lib\site-packages\sklearn\utils\validation.py:2691: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names 
+  warnings.warn(
+D:\hachaton\text-authorship-detection\.env\Lib\site-packages\sklearn\utils\validation.py:2691: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names 
+  warnings.warn(
+D:\hachaton\text-authorship-detection\.env\Lib\site-packages\sklearn\utils\validation.py:2691: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names 
+  warnings.warn(
+D:\hachaton\text-authorship-detection\.env\Lib\site-packages\sklearn\utils\validation.py:2691: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names 
+  warnings.warn(
+D:\hachaton\text-authorship-detection\.env\Lib\site-packages\sklearn\utils\validation.py:2691: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names 
+  warnings.warn(
+2026-03-16 22:58:27 [INFO] src.train —   Fold 4/5 | train=0.9961  val=0.9500  time=253s
+2026-03-16 22:58:27 [INFO] src.features —   Stylometric features: ENABLED (43 features)
+2026-03-16 22:58:27 [INFO] src.features —   Function-word TF-IDF: ENABLED (151 words)
+D:\hachaton\text-authorship-detection\.env\Lib\site-packages\sklearn\utils\validation.py:2691: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names 
+  warnings.warn(
+D:\hachaton\text-authorship-detection\.env\Lib\site-packages\sklearn\utils\validation.py:2691: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names 
+  warnings.warn(
+D:\hachaton\text-authorship-detection\.env\Lib\site-packages\sklearn\utils\validation.py:2691: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names 
+  warnings.warn(
+D:\hachaton\text-authorship-detection\.env\Lib\site-packages\sklearn\utils\validation.py:2691: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names 
+  warnings.warn(
+D:\hachaton\text-authorship-detection\.env\Lib\site-packages\sklearn\utils\validation.py:2691: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names 
+  warnings.warn(
+D:\hachaton\text-authorship-detection\.env\Lib\site-packages\sklearn\utils\validation.py:2691: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names 
+  warnings.warn(
+2026-03-16 23:02:42 [INFO] src.train —   Fold 5/5 | train=1.0000  val=0.9261  time=254s
+2026-03-16 23:02:42 [INFO] src.train —
+  stacking_lgbm fold results: [0.9176, 0.9581, 0.9448, 0.95, 0.9261]
+2026-03-16 23:02:42 [INFO] src.train —   Best fold F1   : 0.9581
+2026-03-16 23:02:42 [INFO] src.train —   stacking_lgbm FINAL => mean=0.9393  std=0.0151  oof=0.9397  overfit_gap=0.0595
+2026-03-16 23:02:42 [INFO] src.train — =================================================================
+
+2026-03-16 23:02:42 [INFO] src.train —   Saved CV artifacts to: artifacts\experiments\2026-03-16_221821_run\stacking_lgbm
+2026-03-16 23:02:43 [INFO] src.train —   Best fold model saved (val_f1=0.9581): artifacts\experiments\2026-03-16_221821_run\stacking_lgbm\best_fold_model.joblib
+2026-03-16 23:02:43 [INFO] src.plots —   Saved overfitting plot: artifacts\experiments\2026-03-16_221821_run\plots\overfitting_stacking_lgbm.png
+2026-03-16 23:02:43 [INFO] src.plots —   Saved confusion matrix plot: artifacts\experiments\2026-03-16_221821_run\plots\confusion_matrix_stacking_lgbm.png
+2026-03-16 23:02:43 [INFO] src.train —   >>> NEW BEST: stacking_lgbm = 0.9393
+2026-03-16 23:02:43 [INFO] src.train — 
+#################################################################
+2026-03-16 23:02:43 [INFO] src.train —   BEST MODEL : stacking_lgbm
+2026-03-16 23:02:43 [INFO] src.train —   CV F1      : 0.9393
+2026-03-16 23:02:43 [INFO] src.train —   OOF F1     : 0.9397
+2026-03-16 23:02:43 [INFO] src.train — #################################################################
+
+2026-03-16 23:02:43 [INFO] src.train — Full comparison:
+2026-03-16 23:02:43 [INFO] src.train —
+                     model  mean_val_macro_f1  std_val_macro_f1  mean_train_macro_f1  mean_overfit_gap  oof_macro_f1  oof_accuracy
+             stacking_lgbm             0.9393            0.0151               0.9988            0.0595        0.9397        0.9817
+             ensemble_lgbm             0.9334            0.0087               1.0000            0.0666        0.9338        0.9800
+              ensemble_mlp             0.9305            0.0201               0.9948            0.0643        0.9314        0.9804
+            two_stage_top2             0.9303            0.0210               0.9979            0.0675        0.9313        0.9800
+mlp_svd_calibrated_sigmoid             0.9256            0.0228               0.9906            0.0650        0.9263        0.9783
+                  lgbm_svd             0.9239            0.0108               1.0000            0.0761        0.9237        0.9762
+2026-03-16 23:02:43 [INFO] src.train —
+Optimizing per-class thresholds for: stacking_lgbm
+2026-03-16 23:02:43 [INFO] src.threshold_optimizer —   Threshold opt: baseline macro F1 = 0.9397 
+2026-03-16 23:02:43 [INFO] src.threshold_optimizer —   Per-class F1 before: [np.float64(0.998), np.float64(0.765), np.float64(0.897), np.float64(1.0), np.float64(0.985), np.float64(0.992)]      
+2026-03-16 23:02:43 [INFO] src.threshold_optimizer —   Threshold opt: tuned  macro F1 = 0.9468  (gain=+0.0070)
+2026-03-16 23:02:43 [INFO] src.threshold_optimizer —   Per-class F1 after:  [np.float64(0.999), np.float64(0.795), np.float64(0.907), np.float64(1.0), np.float64(0.988), np.float64(0.992)]      
+2026-03-16 23:02:43 [INFO] src.threshold_optimizer —   Thresholds: [np.float64(2.25), np.float64(0.75), np.float64(1.0), np.float64(1.0), np.float64(2.5), np.float64(1.75)]
+2026-03-16 23:02:43 [INFO] src.threshold_optimizer —   Pair threshold (DS/Grok ratio): 0.550  (macro F1 = 0.9425)
+2026-03-16 23:02:44 [INFO] src.plots — Saved model comparison plot: artifacts\experiments\2026-03-16_221821_run\plots\model_comparison.png
+2026-03-16 23:02:44 [INFO] src.plots — Saved combined overfitting plot: artifacts\experiments\2026-03-16_221821_run\plots\overfitting_all_models.png
+2026-03-16 23:02:44 [INFO] main_train — Model comparison saved to: artifacts\metrics\model_comparison.csv
+2026-03-16 23:02:44 [INFO] main_train —
+Model comparison saved to: artifacts\experiments\2026-03-16_221821_run\model_comparison.csv      
+2026-03-16 23:02:44 [INFO] main_train — Model comparison also saved to: artifacts\metrics\model_comparison.csv
+2026-03-16 23:02:44 [INFO] main_train —   [NOTE] CV winner (stacking_lgbm) differs from config best_model (ensemble_mlp). Using CV winner for final training.
+2026-03-16 23:02:44 [INFO] main_train — CV best model: stacking_lgbm  (this will be trained and submitted)
+2026-03-16 23:02:44 [INFO] main_train — Plots saved to: artifacts\experiments\2026-03-16_221821_run\plots
+2026-03-16 23:02:44 [INFO] main_train —   Per-class thresholds saved to: artifacts/thresholds.json
+2026-03-16 23:02:44 [INFO] main_train —
+Training final model: stacking_lgbm
+2026-03-16 23:02:44 [INFO] src.train — ============================================================
+2026-03-16 23:02:44 [INFO] src.train — FINAL TRAINING — model: stacking_lgbm
+2026-03-16 23:02:44 [INFO] src.train —   Training samples: 2400
+2026-03-16 23:02:44 [INFO] src.features —   Stylometric features: ENABLED (43 features)
+2026-03-16 23:02:44 [INFO] src.features —   Function-word TF-IDF: ENABLED (151 words)
+D:\hachaton\text-authorship-detection\.env\Lib\site-packages\sklearn\utils\validation.py:2691: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names 
+  warnings.warn(
+D:\hachaton\text-authorship-detection\.env\Lib\site-packages\sklearn\utils\validation.py:2691: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names 
+  warnings.warn(
+D:\hachaton\text-authorship-detection\.env\Lib\site-packages\sklearn\utils\validation.py:2691: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names 
+  warnings.warn(
+2026-03-16 23:07:04 [INFO] src.train —   Final training completed in 260.5s
+2026-03-16 23:07:06 [INFO] src.train —   Pipeline saved to: artifacts/models/best_model.joblib
+2026-03-16 23:07:06 [INFO] src.train —   Feature importance: classifier has no coef_, skipping.
+2026-03-16 23:07:07 [INFO] main_train — Final model also saved to: artifacts\experiments\2026-03-16_221821_run\best_model.joblib
+2026-03-16 23:07:07 [INFO] main_train — 
+Generating per-model submissions from best fold models...
+2026-03-16 23:07:07 [INFO] src.data — Loading test data from: data\test.csv
+2026-03-16 23:07:07 [INFO] src.data —   Dropped unnamed index columns: ['Unnamed: 0']
+2026-03-16 23:07:07 [INFO] src.data —   Raw shape: (600, 1)
+2026-03-16 23:07:07 [INFO] src.data —   Cleaned shape: (600, 1)
+2026-03-16 23:07:07 [INFO] main_train —   Test samples: 600
+2026-03-16 23:07:07 [INFO] src.inference — Running inference on 600 samples...
+2026-03-16 23:07:09 [INFO] src.inference —   Prediction distribution: {0: 381, 1: 21, 2: 37, 3: 20, 4: 62, 5: 79}
+2026-03-16 23:07:09 [INFO] src.submission — Created submission with 600 rows.
+2026-03-16 23:07:09 [INFO] main_train —   two_stage_top2: submission saved → submission_20260316_230707.csv
+2026-03-16 23:07:09 [INFO] src.inference — Running inference on 600 samples...
+2026-03-16 23:07:11 [INFO] src.inference —   Prediction distribution: {0: 380, 1: 21, 2: 37, 3: 20, 4: 62, 5: 80}
+2026-03-16 23:07:11 [INFO] src.submission — Created submission with 600 rows.
+2026-03-16 23:07:11 [INFO] main_train —   ensemble_mlp: submission saved → submission_20260316_230707.csv
+2026-03-16 23:07:12 [INFO] src.inference — Running inference on 600 samples...
+D:\hachaton\text-authorship-detection\.env\Lib\site-packages\sklearn\utils\validation.py:2691: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names 
+  warnings.warn(
+2026-03-16 23:07:13 [INFO] src.inference —   Prediction distribution: {0: 380, 1: 23, 2: 39, 3: 20, 4: 60, 5: 78}
+2026-03-16 23:07:13 [INFO] src.submission — Created submission with 600 rows.
+2026-03-16 23:07:13 [INFO] main_train —   lgbm_svd: submission saved → submission_20260316_230707.csv
+2026-03-16 23:07:14 [INFO] src.inference — Running inference on 600 samples...
+D:\hachaton\text-authorship-detection\.env\Lib\site-packages\sklearn\utils\validation.py:2691: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names 
+  warnings.warn(
+2026-03-16 23:07:15 [INFO] src.inference —   Prediction distribution: {0: 381, 1: 19, 2: 40, 3: 20, 4: 61, 5: 79}
+2026-03-16 23:07:15 [INFO] src.submission — Created submission with 600 rows.
+2026-03-16 23:07:15 [INFO] main_train —   ensemble_lgbm: submission saved → submission_20260316_230707.csv
+2026-03-16 23:07:16 [INFO] src.inference — Running inference on 600 samples...
+2026-03-16 23:07:19 [INFO] src.inference —   Prediction distribution: {0: 381, 1: 16, 2: 42, 3: 20, 4: 62, 5: 79}
+2026-03-16 23:07:19 [INFO] src.submission — Created submission with 600 rows.
+2026-03-16 23:07:19 [INFO] main_train —   mlp_svd_calibrated_sigmoid: submission saved → submission_20260316_230707.csv
+2026-03-16 23:07:20 [INFO] src.inference — Running inference on 600 samples...
+D:\hachaton\text-authorship-detection\.env\Lib\site-packages\sklearn\utils\validation.py:2691: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names 
+  warnings.warn(
+2026-03-16 23:07:22 [INFO] src.inference —   Prediction distribution: {0: 380, 1: 23, 2: 38, 3: 20, 4: 60, 5: 79}
+2026-03-16 23:07:22 [INFO] src.submission — Created submission with 600 rows.
+2026-03-16 23:07:22 [INFO] main_train —   stacking_lgbm: submission saved → submission_20260316_230707.csv
+2026-03-16 23:07:22 [INFO] main_train — ============================================================
+2026-03-16 23:07:22 [INFO] main_train — TRAINING COMPLETE
+2026-03-16 23:07:22 [INFO] main_train —   Total time     : 2941.0s
+2026-03-16 23:07:22 [INFO] main_train —   Best model     : stacking_lgbm
+2026-03-16 23:07:22 [INFO] main_train —   Model artifact : artifacts/models/best_model.joblib    
+2026-03-16 23:07:22 [INFO] main_train —   Plots dir      : artifacts\experiments\2026-03-16_221821_run\plots
+2026-03-16 23:07:22 [INFO] main_train —   Experiment dir : artifacts\experiments\2026-03-16_221821_run
+2026-03-16 23:07:22 [INFO] main_train — ============================================================
+2026-03-16 23:07:22 [INFO] main_train — Next step: python main_infer.py --config configs/config.yaml
+2026-03-16 23:07:24 [INFO] main_infer — ============================================================
+2026-03-16 23:07:24 [INFO] main_infer — SYSTEM INFO
+2026-03-16 23:07:24 [INFO] main_infer —   Python      : 3.12.10
+2026-03-16 23:07:24 [INFO] main_infer —   Platform    : Windows-11-10.0.26200-SP0
+2026-03-16 23:07:24 [INFO] main_infer —   NumPy       : 2.4.3
+2026-03-16 23:07:24 [INFO] main_infer —   Pandas      : 3.0.1
+2026-03-16 23:07:24 [INFO] main_infer —   scikit-learn: 1.8.0
+2026-03-16 23:07:24 [INFO] main_infer — ============================================================
+2026-03-16 23:07:24 [INFO] main_infer — Config loaded from: configs/config.yaml
+2026-03-16 23:07:24 [INFO] src.inference — Loading pipeline from: artifacts\models\best_model.joblib
+2026-03-16 23:07:25 [INFO] src.inference —   Pipeline steps: ['preprocessor', 'features', 'classifier']
+2026-03-16 23:07:25 [INFO] main_infer —   DS/Grok pair threshold: 0.550
+2026-03-16 23:07:25 [INFO] main_infer — Loaded per-class thresholds from: artifacts\thresholds.json
+2026-03-16 23:07:25 [INFO] main_infer —   Thresholds: [2.25, 0.75, 1.0, 1.0, 2.5, 1.75]
+2026-03-16 23:07:25 [INFO] src.data — Loading test data from: data\test.csv
+2026-03-16 23:07:25 [INFO] src.data —   Dropped unnamed index columns: ['Unnamed: 0']
+2026-03-16 23:07:25 [INFO] src.data —   Raw shape: (600, 1)
+2026-03-16 23:07:25 [INFO] src.data —   Cleaned shape: (600, 1)
+2026-03-16 23:07:25 [INFO] main_infer — Test samples: 600
+2026-03-16 23:07:25 [INFO] src.inference — Running inference on 600 samples...
+D:\hachaton\text-authorship-detection\.env\Lib\site-packages\sklearn\utils\validation.py:2691: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names 
+  warnings.warn(
+2026-03-16 23:07:27 [INFO] src.inference —   Applied per-class thresholds to predictions.
+2026-03-16 23:07:27 [INFO] src.inference —   Applied DS/Grok pair threshold: 0.550
+2026-03-16 23:07:27 [INFO] src.data — Loading sample submission from: data\sample_submission.csv
+2026-03-16 23:07:27 [INFO] src.submission — Submission validation passed.
+2026-03-16 23:07:27 [INFO] src.submission — Submission saved to: artifacts\submissions\submiscsv
+2026-03-16 23:07:27 [INFO] src.submission — Submission validation passed.
+2026-03-16 23:07:27 [INFO] src.submission — Submission saved to: artifacts\submissions\submission_20260316_230727.csv
+2026-03-16 23:07:27 [INFO] src.submission — Latest submission also saved to: artifacts\submissions\submission_latest.csv
+2026-03-16 23:07:27 [INFO] main_infer —   Submission also saved to experiment: artifacts\experiments\2026-03-16_221821_run\submission_20260316_230727.csv
+2026-03-16 23:07:27 [INFO] main_infer — ============================================================
+2026-03-16 23:07:27 [INFO] main_infer — INFERENCE COMPLETE
+2026-03-16 23:07:27 [INFO] main_infer —   Predictions     : 600
+2026-03-16 23:07:27 [INFO] main_infer —   Output file     : artifacts\submissions\submission_20260316_230727.csv
+2026-03-16 23:07:27 [INFO] main_infer —   Total time      : 3.3s
+2026-03-16 23:07:27 [INFO] main_infer — ============================================================
+(.env) PS D:\hachaton\text-authorship-detection> Use codex to analyze this repository and tell me 3 problems you see.

@@ -1,4 +1,4 @@
 model,mean_val_macro_f1,std_val_macro_f1,mean_train_macro_f1,mean_overfit_gap,oof_macro_f1,oof_accuracy
-stacking_lgbm,0.9339,0.0214,1.0,0.0661,0.9342,0.9812
-stacking_lgbm_v3,0.9328,0.0178,1.0,0.0672,0.9331,0.9808
-two_stage_top2,0.9253,0.0164,1.0,0.0747,0.9258,0.9804
+stacking_lgbm,0.9287,0.0105,1.0,0.0713,0.9293,0.9788
+stacking_lgbm_nmlp,0.9267,0.0111,1.0,0.0733,0.9272,0.9783
+two_stage_top2,0.9208,0.0247,0.9998,0.0789,0.9219,0.9788

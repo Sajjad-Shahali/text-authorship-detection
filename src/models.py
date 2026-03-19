@@ -544,6 +544,8 @@ AVAILABLE_MODELS = [
     "stacking_lgbm",           # StackingClassifier: [two_stage_top2, mlp_svd, lgbm_svd] → LR meta
     "stacking_lgbm_v2",        # stacking_lgbm + LGBM binary + tuned meta-LR (C=1, balanced=None, cv=5)
     "stacking_lgbm_v3",        # stacking_lgbm + XGBoost as 4th base + StratifiedKFold inner CV
+    # ── Run 18: MLP-free stacking (HANDOFF Run 20 idea) ──────────────────────
+    "stacking_lgbm_nmlp",      # StackingClassifier: [two_stage_top2, lgbm_svd] → LR meta (no MLP)
 ]
 
 
@@ -1304,11 +1306,16 @@ def get_model(name: str, config: Dict) -> BaseEstimator:
             solver=cfg_lr.get("solver", "lbfgs"), class_weight="balanced",
             random_state=seed,
         )
+        # Run 14: margin_trigger_gap removed from base TwoStageClassifier.
+        # In Run 10 (CV 0.9393), the gap was not passed due to a bug → gap=None (no restriction).
+        # The Run 11 "fix" set gap=0.40 which changes the trigger to be more restrictive
+        # (top2 AND margin<0.40) vs Run 10's behavior (top2 only, no margin check).
+        # Reverting to gap=None matches Run 10 behavior exactly.
         base_two_stage = TwoStageClassifier(
             base_classifier=top2_base,
             binary_classifier=top2_binary,
             top2_trigger=True,
-            margin_trigger_gap=gap,   # BUG FIX: now passed correctly
+            margin_trigger_gap=None,  # Run 14: gap=None restores Run 10 behavior
             binary_ds_threshold=ds_thr,
         )
         base_mlp = TfidfMLPClassifier(
@@ -1524,6 +1531,68 @@ def get_model(name: str, config: Dict) -> BaseEstimator:
             ],
             final_estimator=meta_lr,
             cv=inner_cv,
+            stack_method="predict_proba",
+            n_jobs=1,
+            passthrough=False,
+        )
+
+    # ── Stacking without MLP: [two_stage_top2, lgbm_svd] → LR meta ─────────
+    if name == "stacking_lgbm_nmlp":
+        # HANDOFF Run 20 recommendation: remove MLP from stacking.
+        # Rationale: MLP inside StackingClassifier adds noise because:
+        #   - Early stopping is non-deterministic across 3 inner CV folds
+        #   - SVD subspace varies slightly per fold → unstable meta-features
+        #   - Overconfident softmax probs mislead meta-LR for minority classes
+        # Two clean base estimators with complementary inductive bias:
+        #   two_stage_top2: sparse linear + dedicated DS/Grok binary specialist
+        #   lgbm_svd:       gradient boosting — non-linear tree interactions
+        cfg_lr = model_cfg.get("logistic_regression_balanced", {})
+        ds_thr = model_cfg.get("two_stage_ds_threshold", 0.50)
+        lc     = model_cfg.get("lgbm", {})
+
+        top2_base = LogisticRegression(
+            C=cfg_lr.get("C", 0.5), max_iter=cfg_lr.get("max_iter", 1000),
+            solver=cfg_lr.get("solver", "lbfgs"), class_weight="balanced",
+            random_state=seed,
+        )
+        top2_binary = LogisticRegression(
+            C=1.5, max_iter=cfg_lr.get("max_iter", 1000),
+            solver=cfg_lr.get("solver", "lbfgs"), class_weight="balanced",
+            random_state=seed,
+        )
+        base_two_stage = TwoStageClassifier(
+            base_classifier=top2_base,
+            binary_classifier=top2_binary,
+            top2_trigger=True,
+            margin_trigger_gap=None,   # matches stacking_lgbm Run 10 behavior
+            binary_ds_threshold=ds_thr,
+        )
+        base_lgbm = LGBMTfidfClassifier(
+            n_svd_components=lc.get("n_svd_components", 300),
+            n_estimators=lc.get("n_estimators", 300),
+            num_leaves=lc.get("num_leaves", 31),
+            learning_rate=lc.get("learning_rate", 0.05),
+            min_child_samples=lc.get("min_child_samples", 10),
+            subsample=lc.get("subsample", 0.8),
+            colsample_bytree=lc.get("colsample_bytree", 0.8),
+            reg_alpha=lc.get("reg_alpha", 0.1),
+            reg_lambda=lc.get("reg_lambda", 0.1),
+            random_state=seed,
+        )
+        # Meta: 12-dim OOF proba (2 models × 6 classes) → LR
+        meta_lr = LogisticRegression(
+            C=0.1,
+            max_iter=1000,
+            class_weight="balanced",
+            random_state=seed,
+        )
+        return StackingClassifier(
+            estimators=[
+                ("two_stage_top2", base_two_stage),
+                ("lgbm_svd",       base_lgbm),
+            ],
+            final_estimator=meta_lr,
+            cv=3,
             stack_method="predict_proba",
             n_jobs=1,
             passthrough=False,

@@ -1,0 +1,7 @@
+model,mean_val_macro_f1,std_val_macro_f1,mean_train_macro_f1,mean_overfit_gap,oof_macro_f1,oof_accuracy
+stacking_lgbm,0.9393,0.0151,0.9988,0.0595,0.9397,0.9817
+ensemble_lgbm,0.9334,0.0087,1.0,0.0666,0.9338,0.98
+ensemble_mlp,0.9305,0.0201,0.9948,0.0643,0.9314,0.9804
+two_stage_top2,0.9303,0.021,0.9979,0.0675,0.9313,0.98
+mlp_svd_calibrated_sigmoid,0.9256,0.0228,0.9906,0.065,0.9263,0.9783
+lgbm_svd,0.9239,0.0108,1.0,0.0761,0.9237,0.9762

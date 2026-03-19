@@ -1,6 +1,6 @@
 """
 features.py -- Feature engineering pipeline.
-43 hand-crafted stylometric features + word/char/function-word TF-IDF.
+45 hand-crafted stylometric features + word/char/function-word TF-IDF.
 All fitted INSIDE CV folds -- no leakage.
 """
 import math
@@ -60,7 +60,7 @@ FUNCTION_WORDS = [
 
 class StyleometricTransformer(BaseEstimator, TransformerMixin):
     """
-    43 features.
+    45 features.
     Key additions over v1 (20 features):
       - very_short/long sentence ratios (DeepSeek short, Grok long)
       - numbered_list_rate    (DeepSeek loves numbered lists)
@@ -92,8 +92,6 @@ class StyleometricTransformer(BaseEstimator, TransformerMixin):
     )
     # DS/Grok encyclopedic discriminators (Run 12)
     _DEF_RE  = re.compile(r'^[A-Z][^.!?\n]{0,80}\b(is|are|was|were)\b', re.IGNORECASE)
-    _YEAR_RE = re.compile(r'\b(1[0-9]{3}|20[0-2][0-9])\b')
-
     def fit(self, X, y=None):
         return self
 
@@ -102,7 +100,7 @@ class StyleometricTransformer(BaseEstimator, TransformerMixin):
 
     def _f(self, text):
         if not text or not isinstance(text, str):
-            return [0.0] * 49
+            return [0.0] * 45
         NL2 = '\n\n'
         NL1 = '\n'
         ch = len(text)
@@ -189,11 +187,17 @@ class StyleometricTransformer(BaseEstimator, TransformerMixin):
         # text_len_log: log10 of char count — length bucket is a style signal
         text_len_log = math.log10(max(ch, 1))
 
+        # Run 10 recovery: these two features were documented in the experiment log
+        # but had drifted out of the current code.
+        starts_with_the = 1.0 if text.lstrip().lower().startswith("the ") else 0.0
+        clause_per_sent = text.count(',') / ns
+
         return [ch, nw, ns, np_, awl, nw/ns, nw/np_, ttr, lwr,
                 vss, vls, apc, cm, per, ex, qu, co, se, qt, pa, el, da,
                 ucr, dr, cwr, nlr, br, nr, hr, cr, bor, ir, lkr, isr,
                 punct_variety, sent_cv, trans_rate, fsw, proper_noun_dens,
-                hedge_rate, qps, sent_range, text_len_log]
+                hedge_rate, qps, sent_range, text_len_log,
+                starts_with_the, clause_per_sent]
 
 
 class IdentityTransformer(BaseEstimator, TransformerMixin):
@@ -232,7 +236,7 @@ class DenseToSparse(BaseEstimator, TransformerMixin):
 
 
 class StyleometricPipeline(BaseEstimator, TransformerMixin):
-    """Extractor + MaxAbsScaler + sparse conversion. 49 features."""
+    """Extractor + MaxAbsScaler + sparse conversion. 45 features."""
     _FEATURE_NAMES = [
         "ch", "nw", "ns", "np", "awl", "nw_per_s", "nw_per_p", "ttr", "lwr",
         "vss", "vls", "apc", "cm", "per", "ex", "qu", "co", "se", "qt", "pa",
@@ -240,6 +244,7 @@ class StyleometricPipeline(BaseEstimator, TransformerMixin):
         "ir", "lkr", "isr", "punct_variety", "sent_cv", "trans_rate",
         "first_sent_words", "proper_noun_density", "hedge_rate",
         "question_per_sent", "sent_range", "text_len_log",
+        "starts_with_the", "clause_per_sent",
     ]
 
     def __init__(self):
@@ -285,12 +290,28 @@ class FunctionWordAnalyzer:
 
 def build_function_word_tfidf(cfg: Dict) -> TfidfVectorizer:
     """
-    TF-IDF over function-word n-grams.
-    Captures style fingerprint (how the author connects ideas)
-    rather than topic (what the text is about).
-    Supports ngram_range from config (default [1,2] for bigrams).
+    TF-IDF over function words.
+
+    ngram_range=[1,1] (default / proven): uses vocabulary=FUNCTION_WORDS — a fixed
+    151-word unigram vocabulary.  This is the Run 10 configuration (CV 0.9393).
+    Stable, no overfitting, captures LLM style fingerprint cleanly.
+
+    ngram_range=[1,N] for N>1: uses FunctionWordAnalyzer to generate bigrams/trigrams
+    of function words.  Higher capacity but more prone to overfit on 2400 samples
+    (Run 12 regression: 0.9393 → 0.9339 when switched to [1,2]).
     """
-    ngram_range = tuple(cfg.get("ngram_range", [1, 2]))
+    ngram_range = tuple(cfg.get("ngram_range", [1, 1]))
+
+    if ngram_range == (1, 1):
+        # Proven unigram approach: fixed vocabulary, no max_features ceiling,
+        # exact 151 features — numerically stable across all CV folds.
+        return TfidfVectorizer(
+            analyzer='word',
+            vocabulary=FUNCTION_WORDS,
+            sublinear_tf=cfg.get("sublinear_tf", True),
+        )
+
+    # Bigrams/trigrams: FunctionWordAnalyzer with max_features cap
     return TfidfVectorizer(
         analyzer=FunctionWordAnalyzer(ngram_range),
         max_features=cfg.get("max_features", 5000),
@@ -431,7 +452,7 @@ def build_feature_union(config: Dict) -> FeatureUnion:
 
     if sc.get("enabled", True):
         trans.append(("stylometric", StyleometricPipeline()))
-        logger.info("  Stylometric features: ENABLED (49 features)")
+        logger.info("  Stylometric features: ENABLED (45 features)")
     else:
         logger.info("  Stylometric features: disabled")
 

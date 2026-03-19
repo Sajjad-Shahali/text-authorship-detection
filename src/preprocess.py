@@ -77,14 +77,11 @@ class Preprocessor(BaseEstimator, TransformerMixin):
             text = text.strip()
 
         if self.remove_repeated_spaces:
-            text = re.sub(r" {2,}", " ", text)
-            # Normalize line endings (CRLF/CR → LF) and convert tabs to spaces,
-            # but PRESERVE newline characters — they carry structural signals
-            # (paragraph breaks, list items, markdown headers) that are key
-            # discriminators between LLMs (especially Gemini's formatted output).
-            text = re.sub(r"\r\n?", "\n", text)   # CRLF / CR  → LF
-            text = re.sub(r"\t+", " ", text)        # tabs → space
-            text = re.sub(r" {2,}", " ", text)      # collapse multiple spaces
+            # Collapse ALL whitespace (including \n, \t) to a single space.
+            # Run 10 (CV 0.9393) used this behaviour — newlines preserved since
+            # Run 11 but that change appears to have HURT performance.
+            # Run 16: revert to Run 10 whitespace collapsing to test hypothesis.
+            text = re.sub(r"\s+", " ", text)
 
         if self.lowercase:
             text = text.lower()

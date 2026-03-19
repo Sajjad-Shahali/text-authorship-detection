@@ -1,26 +1,19 @@
 # ============================================================
-# MALTO Text Authorship Detection — Configuration  (Run 7)
+# MALTO Text Authorship Detection — Final Configuration
 # ============================================================
-# Run 6 results: CV 0.9328, two_stage_top2 winner. DS recall 0.61->0.70 (+0.09).
-#   BUT: DS->Grok=21 (-6), Grok->DS=14 (+6). Net 35 total errors — same as before.
-#   Only 5/600 test labels changed from Run 5 — too small for LB jump.
+# Best confirmed LB: 0.92422 (Run 10, stacking_lgbm, 2026-03-16)
+# Best submission:   artifacts/submissions/submission_latest.csv  (= 0.92422 file)
 #
-# Run 7 (target: net reduce DS+Grok total errors below 30):
-#   - two_stage_top2_conservative: top2 trigger + natural binary weights (1:2 DS:Grok, C=0.8)
-#     Goal: keep DS recall gain, recover the 6 extra Grok->DS errors
-#   - two_stage_combined: GPT suggestion — top2 AND margin<0.30 (AND logic, most selective)
-#     Goal: fire only when truly ambiguous, near-zero false positive risk
-#   - ensemble_v2: soft vote of [two_stage_top2 + ensemble_soft]
-#     Goal: complement DS recall (0.70) with Grok recall (0.93) from each model
+# Run 10 exact config (verified from config_snapshot.yaml):
+#   - LGBM 300/300/31
+#   - function_word_tfidf: enabled, no ngram_range (→ fixed [1,1] vocabulary)
+#   - ds_grok_tfidf: disabled (was NOT in Run 10 despite HANDOFF claiming otherwise)
+#   - delex_tfidf: disabled (was NOT in Run 10)
+#   - char_tfidf_micro: disabled (was NOT in Run 10)
+#   - Thresholds: [2.25, 0.75, 1.0, 1.0, 2.5, 1.75], ds_grok_pair=0.55
 #
-# Run 7 results: two_stage_top2 still winner (CV=0.9328). Conservative binary FAILED
-#   (DS recall 0.46 — natural weights too Grok-biased). Combined trigger traded DS->Grok=20
-#   for Grok->DS=19 — net 35 total DS/Grok errors same. Linear ceiling confirmed.
-#
-# Run 8 — Neural Network (target: break linear ceiling ~0.9328):
-#   - mlp_svd: TruncatedSVD(500) + MLPClassifier(512,256,ReLU) with balanced sample weights
-#     Non-linear boundaries can learn feature interactions LR fundamentally cannot
-#   - ensemble_mlp: soft vote of mlp_svd + two_stage_top2 (orthogonal representations)
+# Lesson learned (Run 18): adding ds_grok/delex/fw[1,3] based on wrong HANDOFF
+#   info regressed LB from 0.92422 to 0.90984. Run 10 features were simpler.
 # ============================================================
 
 # -----------------------------------------------------------
@@ -80,12 +73,41 @@ features:
   stylometric:
     enabled: true
 
-  # Function-word TF-IDF — style fingerprint, not topic
-  # Uses a fixed ~130-word vocabulary of determiners, conjunctions, auxiliaries,
-  # pronouns, and discourse markers.  Different LLMs use these at very distinct rates.
+  # Character micro TF-IDF — DISABLED for Run 15 to test if it caused regression.
+  # Run 10 (CV 0.9393) did NOT have char_tfidf_micro.
+  # All runs since Run 11 added it and CV declined (0.9393->0.9370->0.9339->0.9271->0.9214).
+  # Hypothesis: overlapping char ngram ranges (2-6 char_wb + 3-7 char) add noise to LR.
+  char_tfidf_micro:
+    enabled: false
+    ngram_range: [3, 7]
+    max_features: 20000
+    min_df: 2
+    analyzer: "char"
+    sublinear_tf: true
+
+  # Function-word TF-IDF — style fingerprint, not topic.
+  # Run 10 config (LB 0.92422): no ngram_range → uses fixed 151-word vocabulary (unigrams).
+  # Do NOT add ngram_range here — the code falls back to vocabulary=FUNCTION_WORDS when
+  # ngram_range is [1,1], which is the stable proven approach.
   function_word_tfidf:
     enabled: true
     sublinear_tf: true
+
+  # DS/Grok subspace TF-IDF — NOT in Run 10 (LB 0.92422).
+  # Keep disabled: was never tested in isolation and hurt LB when added in Run 18.
+  ds_grok_tfidf:
+    enabled: false
+    ngram_range: [1, 3]
+    max_features: 10000
+    min_df: 1
+
+  # Delexicalized TF-IDF — NOT in Run 10 (LB 0.92422).
+  # Keep disabled: was never tested in isolation.
+  delex_tfidf:
+    enabled: false
+    ngram_range: [1, 2]
+    max_features: 30000
+    min_df: 2
 
 # -----------------------------------------------------------
 # Cross-Validation
@@ -107,13 +129,12 @@ learning_curve:
 # -----------------------------------------------------------
 models:
   run_models:
-    - "two_stage_top2"                 # linear reference: CV=0.9328
-    - "stacking_lgbm"                  # best model: LB 0.92422, CV 0.9393
-    - "stacking_lgbm_v3"               # XGBoost 4th base + StratifiedKFold
+    - "two_stage_top2"                 # reference: CV=0.9208 (Run 18)
+    - "stacking_lgbm"                  # best model: CV=0.9393 (Run 10), LB=0.92422
 
   # NOTE: when run_cv=true, the CV winner OVERRIDES this setting.
   # This value is only used when run_cv=false (direct final training).
-  best_model: "stacking_lgbm"
+  best_model: "stacking_lgbm"   # Best LB: 0.92422 (Run 10)
 
   # DeepSeek weight multiplier on top of 'balanced' for lr_deepseek_boost
   deepseek_boost: 2.0
@@ -123,10 +144,13 @@ models:
   two_stage_ds_threshold: 0.52    # binary needs P(DS) >= this to predict DeepSeek
 
   # ── LightGBM hyperparameters (used by lgbm_svd, ensemble_lgbm, stacking_lgbm, stacking_lgbm_v2)
+  # Run 18: reverted to 300/300/31 — this is the Run 10 config (LB=0.92422).
+  # 500/500/63 (Run 17) overfits StackingClassifier's inner 3-fold training sets
+  # (~1600 samples, ~64 DS) → noisy meta-features → LB dropped to 0.90430.
   lgbm:
-    n_svd_components: 500         # TruncatedSVD output dims (300→500: richer representation)
-    n_estimators: 500             # boosting rounds (300→500: more capacity)
-    num_leaves: 63                # tree complexity (31→63: captures non-linear DS/Grok boundary)
+    n_svd_components: 300         # Run 10 value — smaller SVD, less overfit inner folds
+    n_estimators: 300             # Run 10 value — fewer trees, less overfit
+    num_leaves: 31                # Run 10 value (LGBM default) — shallower trees
     learning_rate: 0.05           # shrinkage — slower but more generalizable
     min_child_samples: 10         # min samples per leaf — regularisation for small DS class
     subsample: 0.8                # row subsampling per tree

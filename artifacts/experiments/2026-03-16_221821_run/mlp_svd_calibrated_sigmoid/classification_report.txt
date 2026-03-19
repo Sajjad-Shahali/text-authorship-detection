@@ -1,0 +1,12 @@
+              precision    recall  f1-score   support
+
+       Human       1.00      1.00      1.00      1520
+    DeepSeek       0.80      0.65      0.72        80
+        Grok       0.86      0.90      0.88       160
+      Claude       1.00      0.99      0.99        80
+      Gemini       0.98      0.98      0.98       240
+     ChatGPT       0.98      0.99      0.99       320
+
+    accuracy                           0.98      2400
+   macro avg       0.94      0.92      0.93      2400
+weighted avg       0.98      0.98      0.98      2400

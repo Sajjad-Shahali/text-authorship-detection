@@ -48,7 +48,7 @@ def optimize_thresholds(
     y_true: np.ndarray,
     n_grid: int = 11,
     lo: float = 0.5,
-    hi: float = 3.0,
+    hi: float = 1.5,
 ) -> np.ndarray:
     """
     Grid-search per-class scale factors to maximise Macro F1 on OOF data.

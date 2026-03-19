@@ -19,6 +19,7 @@ Outputs per model:
 """
 
 import copy
+import logging
 import time
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
@@ -91,6 +92,21 @@ def run_cross_validation(
     shuffle = val_cfg.get("shuffle", True)
 
     skf = StratifiedKFold(n_splits=n_splits, shuffle=shuffle, random_state=random_state)
+
+    # ── Per-model training log (txt file in model subfolder) ──────────────────
+    _model_log_handler = None
+    if experiment_dir is not None:
+        _model_dir_early = experiment_dir / model_name
+        ensure_dir(_model_dir_early)
+        _model_log_path = _model_dir_early / "training_log.txt"
+        _model_log_handler = logging.FileHandler(
+            str(_model_log_path), mode="w", encoding="utf-8"
+        )
+        _model_log_handler.setFormatter(logging.Formatter(
+            fmt="%(asctime)s [%(levelname)s] — %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S",
+        ))
+        logger.addHandler(_model_log_handler)
 
     X_arr = np.array(X, dtype=object)
     oof_preds = np.zeros(len(y), dtype=int)
@@ -219,6 +235,12 @@ def run_cross_validation(
             oof_cm, model_name,
             save_path=str(plots_dir / f"confusion_matrix_{model_name}.png"),
         )
+
+    # ── Close per-model log handler ───────────────────────────────────────────
+    if _model_log_handler is not None:
+        logger.info(f"  Training log saved to: {_model_log_path}")
+        logger.removeHandler(_model_log_handler)
+        _model_log_handler.close()
 
     return results
 

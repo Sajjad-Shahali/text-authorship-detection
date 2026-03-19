@@ -1,0 +1,7 @@
+True \ Pred,Human,DeepSeek,Grok,Claude,Gemini,ChatGPT
+Human,1519,1,0,0,0,0
+DeepSeek,0,57,21,0,2,0
+Grok,0,11,146,0,1,2
+Claude,0,0,0,80,0,0
+Gemini,1,5,0,0,234,0
+ChatGPT,4,0,0,0,0,316

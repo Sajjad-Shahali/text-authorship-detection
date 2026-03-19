@@ -62,7 +62,6 @@ coverage.xml
 *.log
 *.tmp
 *.bak
-/artifacts/experiments
 malto-hackathon-publicleaderboard4.csv
 malto-hackathon-publicleaderboard2.csv
 malto-hackathon-publicleaderboard6.csv
